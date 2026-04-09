@@ -1,0 +1,24 @@
+# --- FILE TẠM CỦA OFFICE (EXCEL, WORD...) ---
+~$*.xlsx
+~$*.docx
+*.tmp
+
+# --- HỆ THỐNG MÁY TÍNH ---
+.DS_Store
+Thumbs.db
+
+# --- TRÌNH SOẠN THẢO CODE (IDEs) ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- QUY TẮC PHÒNG HỜ CHO FRONTEND ---
+# (Phòng trường hợp file .gitignore của Vite bị lọt)
+Frontend/node_modules/
+Frontend/dist/
+Frontend/dist-ssr/
+Frontend/.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

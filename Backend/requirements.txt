@@ -1,0 +1,108 @@
+# ============================================
+# DANH SÁCH THƯ VIỆN PYTHON DÙNG TRONG PROJECT
+# ============================================
+
+# --- WEB FRAMEWORK ---
+fastapi==0.115.6
+# FastAPI: Framework web hiện đại, nhanh (dựa trên Starlette & Pydantic)
+# - Tự động tạo API docs (Swagger UI)
+# - Hỗ trợ async/await native
+# - Type hints & validation tự động
+# - Dependency Injection mạnh mẽ
+
+uvicorn[standard]==0.34.0
+# Uvicorn: ASGI server để chạy FastAPI
+# - [standard] bao gồm: websockets, httptools, uvloop (tối ưu performance)
+# - Hỗ trợ async I/O
+# - Reload tự động khi dev (--reload)
+# Chạy: uvicorn main:app --reload
+
+# --- DATABASE ---
+sqlalchemy==2.0.45
+# SQLAlchemy: ORM (Object-Relational Mapping) mạnh nhất Python
+# - Version 2.0: Hỗ trợ async/await đầy đủ
+# - Viết code Python thay vì SQL thuần
+# - Quản lý models, relationships, migrations
+# - Hỗ trợ nhiều database: PostgreSQL, MySQL, SQLite...
+
+psycopg2-binary==2.9.11
+# psycopg2-binary: Driver SYNC cho PostgreSQL
+# - Dùng cho Alembic migrations (vẫn chạy sync)
+# - Binary version = đã compile sẵn, cài nhanh
+# - Không cần psycopg2 (source) vì binary đầy đủ chức năng
+
+asyncpg
+# asyncpg: Driver ASYNC cho PostgreSQL
+# - Nhanh nhất cho async operations với PostgreSQL
+# - Dùng với SQLAlchemy async engine
+# - Connection string: postgresql+asyncpg://...
+# - Xử lý concurrent queries hiệu quả
+
+alembic==1.14.0
+# Alembic: Migration tool cho SQLAlchemy
+# - Quản lý version database schema
+# - Tạo/apply migrations tự động
+# - Track thay đổi cấu trúc database theo thời gian
+# Commands:
+#   alembic revision --autogenerate -m "message"
+#   alembic upgrade head
+
+# --- AUTHENTICATION & SECURITY ---
+python-jose[cryptography]==3.3.0
+# python-jose: Thư viện JWT (JSON Web Tokens)
+# - Tạo & verify JWT tokens cho authentication
+# - [cryptography] = backend mã hóa mạnh
+# - Dùng để tạo access_token, refresh_token
+# - Algorithms: HS256, RS256...
+
+passlib[bcrypt]>=1.7.4
+# passlib: Thư viện hash password
+# - [bcrypt] = thuật toán hash an toàn nhất hiện nay
+# - Hash password trước khi lưu database
+# - Verify password khi login
+# Functions: hash(), verify()
+
+bcrypt==4.1.3
+# bcrypt: Backend cho passlib (dùng version 4.1.3 để tránh compatibility issues)
+# - Version 5.x có vấn đề với passlib 1.7.4
+# - Fix lỗi "password cannot be longer than 72 bytes"
+
+# --- ENVIRONMENT VARIABLES ---
+python-dotenv==1.0.1
+# python-dotenv: Load biến môi trường từ file .env
+# - Quản lý config: DATABASE_URL, SECRET_KEY...
+# - Tách config ra khỏi code (best practice)
+# - Khác nhau giữa dev/production
+# Usage: load_dotenv() trong config.py
+
+# --- VALIDATION (đi kèm FastAPI nhưng liệt kê để rõ ràng) ---
+pydantic==2.10.5
+# Pydantic: Data validation & settings management
+# - Define schemas với type hints
+# - Tự động validate input/output
+# - Serialize/deserialize data
+# - FastAPI dùng Pydantic cho request/response
+
+pydantic-settings==2.7.0
+# Pydantic-settings: Quản lý settings từ environment variables
+# - BaseSettings class để load config từ .env
+# - Type validation cho settings
+# - Priority: env vars > .env file > default values
+
+email-validator==2.1.0
+# email-validator: Validate email addresses
+# - Required khi dùng EmailStr trong Pydantic
+# - Kiểm tra cú pháp email theo chuẩn RFC
+# - DNS lookup để verify domain tồn tại
+# - Normalize email về lowercase
+# Usage: from pydantic import EmailStr
+
+
+# Email sending (SMTP)
+fastapi-mail>=1.4.1
+
+
+# ============================================
+# CÁCH CÀI ĐẶT:
+# pip install -r requirements.txt
+# ============================================

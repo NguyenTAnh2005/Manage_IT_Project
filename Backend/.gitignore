@@ -1,0 +1,26 @@
+# --- PYTHON CƠ BẢN ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- MÔI TRƯỜNG ẢO (Virtual Environments) ---
+# Tùy thói quen bạn đặt tên môi trường ảo là gì thì Git sẽ bỏ qua thư mục đó
+venv/
+env/
+.venv/
+ENV/
+
+# --- BIẾN MÔI TRƯỜNG & BẢO MẬT ---
+# Chắc chắn bạn sẽ cần file này để chứa chuỗi kết nối PostgreSQL hoặc khóa bí mật JWT
+.env
+.env.local
+
+# --- LOGS & TESTING ---
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- CƠ SỞ DỮ LIỆU LOCAL ---
+# (Phòng trường hợp bạn dùng SQLite để test nhanh)
+*.sqlite3
