@@ -1,0 +1,4 @@
+Các công việc đã làm trong buổi học 09/04/2026:
++) Thiết kế, phân tích hệ thống
++) Thiết kế Database 
++) Khởi tạo thư mục code dự án frontend, backend ( hiện tại chưa đẩy đủ)
