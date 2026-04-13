@@ -75,6 +75,13 @@ python-dotenv==1.0.1
 # - Khác nhau giữa dev/production
 # Usage: load_dotenv() trong config.py
 
+# --- RATE LIMITING ---
+slowapi==0.1.9
+# slowapi: Rate limiting cho FastAPI
+# - Bảo vệ API khỏi brute force attacks
+# - Ví dụ: @limiter.limit("5/minute") trên login endpoint
+# - Giới hạn số requests trong thời gian nhất định
+
 # --- VALIDATION (đi kèm FastAPI nhưng liệt kê để rõ ràng) ---
 pydantic==2.10.5
 # Pydantic: Data validation & settings management
@@ -100,6 +107,9 @@ email-validator==2.1.0
 
 # Email sending (SMTP)
 fastapi-mail>=1.4.1
+
+# Rate limiting
+slowapi>=0.1.9
 
 
 # ============================================
