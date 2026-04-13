@@ -1,0 +1,123 @@
+import { Outlet, NavLink, useParams, useNavigate } from "react-router-dom";
+import { 
+    ListTree, 
+    KanbanSquare, 
+    GanttChartSquare, 
+    BadgeDollarSign, 
+    LogOut, 
+    Settings,
+    Calculator
+} from "lucide-react";
+import ThemeToggle from "../common/ThemeToggle"; // Đường dẫn tuỳ project của em
+import { useAuth } from "../../context/AuthContext"; // Import hàm outProject
+
+// ==========================================
+// COMPONENT SIDEBAR (THANH ĐIỀU HƯỚNG BÊN TRÁI)
+// ==========================================
+const Sidebar = () => {
+    const { projectCode } = useParams();
+    const navigate = useNavigate();
+    const { outProject } = useAuth(); // Dùng hàm lấy từ context của em
+
+    // Danh sách các menu điều hướng
+    const navLinks = [
+        { path: "wbs", name: "Bảng WBS", icon: <ListTree size={20} /> },
+        { path: "kanban", name: "Bảng Kanban", icon: <KanbanSquare size={20} /> },
+        { path: "gantt", name: "Biểu đồ Gantt", icon: <GanttChartSquare size={20} /> },
+        { path: "cost", name: "Quản lý Chi phí", icon: <BadgeDollarSign size={20} /> },
+        { path: "pert", name: "Tính PERT", icon: <Calculator size={20} /> },
+    ];
+
+    const handleExitProject = () => {
+        outProject(); // Xóa projectCode ở LocalStorage
+        navigate('/join-project'); // Đá về trang chọn dự án
+    };
+
+    return (
+        <div className="w-64 h-screen bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col sticky top-0 transition-colors duration-300">
+            
+            {/* 1. KHU VỰC TÊN DỰ ÁN (TOP) */}
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800">
+                <h1 className="text-xl font-bold text-slate-800 dark:text-white uppercase truncate">
+                    {projectCode}
+                </h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Trưởng dự án: Tuấn Anh</p>
+            </div>
+
+            {/* 2. KHU VỰC MENU ĐIỀU HƯỚNG (MIDDLE - FLEX GROW) */}
+            <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                {navLinks.map((link) => (
+                    <NavLink
+                        key={link.path}
+                        to={link.path}
+                        className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                                isActive
+                                    ? "bg-blue-600 text-white shadow-md"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
+                            }`
+                        }
+                    >
+                        {link.icon}
+                        {link.name}
+                    </NavLink>
+                ))}
+            </div>
+
+            {/* 3. KHU VỰC BOTTOM (CHỨC NĂNG & PROFILE) */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                
+                {/* Nút Thoát và Đổi Theme */}
+                <div className="flex flex-col gap-2">
+                    <ThemeToggle />
+                    <button 
+                        onClick={handleExitProject}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg font-medium transition-colors"
+                    >
+                        <LogOut size={18} />
+                        Thoát dự án
+                    </button>
+                </div>
+
+                {/* Khung Profile */}
+                <div className="flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    {/* Avatar tròn (Lấy chữ cái đầu) */}
+                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold flex-shrink-0">
+                        TA
+                    </div>
+                    {/* Thông tin */}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">Tuấn Anh</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">PM</p>
+                    </div>
+                    {/* Nút Setting (Chờ múa Modal sau) */}
+                    <button className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <Settings size={18} />
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+// ==========================================
+// LAYOUT TỔNG
+// ==========================================
+export const DashBoardLayout = () => {
+    return (
+        <div className="flex min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
+            {/* Sidebar cố định bên trái */}
+            <Sidebar />
+
+            {/* Khu vực nội dung chính bên phải */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <main className="flex-1 p-6 overflow-auto">
+                    <Outlet />
+                </main>
+            </div>
+        </div>
+    );
+};
+
+export default DashBoardLayout;
