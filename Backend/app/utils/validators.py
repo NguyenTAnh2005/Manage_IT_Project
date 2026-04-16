@@ -15,9 +15,8 @@ def is_strong_password(password: str) -> bool:
     Kiểm tra mật khẩu mạnh.
     
     Yêu cầu:
-    - Tối thiểu 8 ký tự
+    - Tối thiểu 6 ký tự
     - Ít nhất 1 chữ hoa (A-Z)
-    - Ít nhất 1 chữ thường (a-z)
     - Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)
     
     Args:
@@ -29,19 +28,15 @@ def is_strong_password(password: str) -> bool:
     Example:
         >>> is_strong_password("WeakPass")
         False
-        >>> is_strong_password("SecurePass!")
+        >>> is_strong_password("Secure!")
         True
     """
     # Kiểm tra độ dài
-    if len(password) < 8:
+    if len(password) < 6:
         return False
     
     # Kiểm tra có chữ hoa
     if not re.search(r'[A-Z]', password):
-        return False
-    
-    # Kiểm tra có chữ thường
-    if not re.search(r'[a-z]', password):
         return False
     
     # Kiểm tra có ký tự đặc biệt
@@ -61,9 +56,8 @@ def get_password_error_message() -> str:
     """
     return (
         "Mật khẩu phải chứa: "
-        "- Tối thiểu 8 ký tự, "
+        "- Tối thiểu 6 ký tự, "
         "- Ít nhất 1 chữ hoa (A-Z), "
-        "- Ít nhất 1 chữ thường (a-z), "
         "- Ít nhất 1 ký tự đặc biệt (!@#$%^&*)"
     )
 

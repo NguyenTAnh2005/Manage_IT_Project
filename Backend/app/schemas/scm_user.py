@@ -1,14 +1,22 @@
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional
-from app.utils.validators import is_strong_password, get_password_error_message
+from app.utils.validators import is_strong_password, get_password_error_message, is_valid_email
 
 # ============= CREATE =============
 class UserCreate(BaseModel):
     """Schema khi user ĐĂNG KÝ"""
     email: str = Field(..., min_length=5, max_length=255)
-    password: str = Field(..., min_length=8)  # Mật khẩu chưa mã hóa
+    password: str = Field(..., min_length=6)  # Mật khẩu chưa mã hóa
     full_name: str = Field(..., min_length=3, max_length=255)
+
+    @field_validator('email')
+    @classmethod
+    def validate_email_format(cls, v):
+        """Validate định dạng email phải hợp lệ"""
+        if not is_valid_email(v):
+            raise ValueError("Email không hợp lệ.")
+        return v
 
     @field_validator('password')
     @classmethod
@@ -23,7 +31,7 @@ class UserCreate(BaseModel):
         json_schema_extra = {
             "example": {
                 "email": "user@example.com",
-                "password": "SecurePass!",
+                "password": "Pass!",
                 "full_name": "Nguyễn Tuấn Anh"
             }
         }
@@ -47,7 +55,15 @@ class UserUpdate(BaseModel):
     """Schema khi user CẬP NHẬT PROFILE"""
     email: Optional[str] = Field(None, min_length=5, max_length=255)
     full_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    password: Optional[str] = Field(None, min_length=8)
+    password: Optional[str] = Field(None, min_length=6)
+
+    @field_validator('email')
+    @classmethod
+    def validate_email_format(cls, v):
+        """Validate định dạng email phải hợp lệ (nếu có)"""
+        if v is not None and not is_valid_email(v):
+            raise ValueError("Email không hợp lệ. Ví dụ: user@example.com")
+        return v
 
     @field_validator('password')
     @classmethod
@@ -62,7 +78,7 @@ class UserUpdate(BaseModel):
             "example": {
                 "email": "newemail@example.com",
                 "full_name": "Tên Mới",
-                "password": "NewSecurePass!"
+                "password": "New!"
             }
         }
 
@@ -77,7 +93,7 @@ class UserLogin(BaseModel):
         json_schema_extra = {
             "example": {
                 "email": "user@example.com",
-                "password": "SecurePass!"
+                "password": "Pass!"
             }
         }
 
@@ -95,3 +111,27 @@ class TokenResponse(BaseModel):
                 "token_type": "bearer"
             }
         }
+
+
+# ============= LOGIN RESPONSE =============
+class LoginResponse(BaseModel):
+    """Schema khi user ĐĂNG NHẬP THÀNH CÔNG"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer",
+                "user": {
+                    "id": 1,
+                    "email": "user@example.com",
+                    "full_name": "Nguyễn Tuấn Anh",
+                    "created_at": "2026-04-16T10:30:00",
+                    "updated_at": "2026-04-16T10:30:00"
+                }
+            }
+        }
+

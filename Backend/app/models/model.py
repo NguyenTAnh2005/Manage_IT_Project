@@ -218,7 +218,8 @@ class Task(Base):
         remote_side=[id],
         back_populates="parent",
         cascade="all, delete-orphan",
-        foreign_keys=[parent_id]
+        foreign_keys=[parent_id],
+        single_parent=True  # Mỗi Task con chỉ có 1 Task cha
     )
     
     parent = relationship(
