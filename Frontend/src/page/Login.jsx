@@ -49,10 +49,10 @@ const Login = () =>{
                 className="flex gap-4 p-8 flex-col max-w-md items-center outline-none rounded-xl shadow-2xl dark:shadow-gray-400"
             >
                 <p className="font-bold text-2xl text-wrap text-center text-primary">
-                    👋 Welcomback, Endministrators! 🗿
+                    👋 Chào mừng trở lại! 🗿
                 </p>
                 <p className="text-base">
-                    Login to manage your website's data!
+                    Đăng nhập để quản lý dự án của bạn!
                 </p>
                 {
                     error&&(
@@ -71,8 +71,8 @@ const Login = () =>{
                     value={email}
                 />
                 <InputPassword
-                    placehoder={"Free Fire là số 1.."}
-                    label={"Pát's guột"}
+                    placehoder={"...."}
+                    label={"Mật khẩu"}
                     onChange={(e) => setPassword(e.target.value)}
                     value={password}
                 />

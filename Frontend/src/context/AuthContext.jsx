@@ -25,7 +25,6 @@ export const AuthProvider = ({children}) =>{
     // If Join Project 
     const joinProject = (newCode) =>{
         setProjectCode(newCode);
-        setToken(null);
         localStorage.setItem("PM_project_code", newCode);
     }
 
