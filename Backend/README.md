@@ -1,31 +1,39 @@
 # 🚀 Backend - IT Project Management System
 
-Backend API cho Hệ Thống Quản Trị Dự Án CNTT được xây dựng bằng **FastAPI** + **PostgreSQL** + **SQLAlchemy**.
+Backend API cho **Hệ Thống Quản Trị Dự Án CNTT** được xây dựng bằng:
+
+- **Framework:** FastAPI (Python)
+- **Database:** PostgreSQL + SQLAlchemy (ORM)
+- **Async:** asyncpg + async sessions
+- **Migration:** Alembic
+- **Authentication:** JWT + Bcrypt
 
 ---
 
 ## 📋 Mục lục
 
-- [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
-- [Cài đặt](#-cài-đặt)
-- [Cấu hình môi trường](#-cấu-hình-môi-trường)
-- [Khởi chạy](#-khởi-chạy)
-- [API Documentation](#-api-documentation)
-- [Cấu trúc project](#-cấu-trúc-project)
-- [Các lệnh hữu ích](#-các-lệnh-hữu-ích)
+1. [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
+2. [Cài đặt (Clone Lần Đầu)](#-cài-đặt-clone-lần-đầu)
+3. [Cấu hình PostgreSQL](#-cấu-hình-postgresql)
+4. [Cấu hình File `.env`](#-cấu-hình-file-env)
+5. [Cấu hình Alembic](#-cấu-hình-alembic)
+6. [Chạy Migrations](#-chạy-migrations)
+7. [Khởi chạy Backend](#-khởi-chạy-backend)
+8. [API Documentation](#-api-documentation)
+9. [Cấu trúc Project](#-cấu-trúc-project)
+10. [Troubleshooting](#-troubleshooting)
 
 ---
 
 ## 💻 Yêu cầu hệ thống
 
-Trước khi cài đặt, đảm bảo bạn có:
+Đảm bảo bạn đã cài:
 
 - **Python 3.10+** - [Download](https://www.python.org/downloads/)
 - **PostgreSQL 12+** - [Download](https://www.postgresql.org/download/)
-- **pip** - Python package manager (thường đi kèm Python)
 - **Git** - [Download](https://git-scm.com/)
 
-### Kiểm tra phiên bản:
+### ✅ Kiểm tra phiên bản:
 
 ```bash
 python --version
@@ -35,70 +43,390 @@ pip --version
 
 ---
 
-## 📦 Cài đặt
+## 📦 Cài Đặt (Clone Lần Đầu)
 
-### 1️⃣ Clone dự án
+### **Bước 1: Clone Repository**
 
 ```bash
 git clone <repository-url>
 cd Manage_IT_Project/Backend
 ```
 
-### 2️⃣ Tạo môi trường ảo (Virtual Environment)
+### **Bước 2: Tạo Virtual Environment**
 
 ```bash
-# Windows
+# Windows (CMD)
 python -m venv venv
 venv\Scripts\activate
+
+# Windows (PowerShell)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 
 # macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3️⃣ Cài đặt dependencies
+✅ **Xác nhận:** Prompt sẽ hiện `(venv)` ở đầu dòng
+
+### **Bước 3: Cài Đặt Dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
+✅ Chờ đến khi cài xong tất cả packages
+
 ---
 
-## ⚙️ Cấu hình môi trường
+## 🗄️ Cấu Hình PostgreSQL
 
-### 1️⃣ Tạo file `.env`
+### **Bước 1: Tạo Database**
+
+Mở **pgAdmin** hoặc **psql** và chạy:
+
+```sql
+CREATE DATABASE QTDA;
+```
+
+### **Bước 2: Xác Nhận Kết Nối**
 
 ```bash
-# Copy file example
+psql -U postgres -h localhost -d QTDA
+```
+
+Nhập password PostgreSQL. Nếu kết nối OK → `psql (version)` sẽ hiện
+
+---
+
+## ⚙️ Cấu Hình File `.env`
+
+### **Bước 1: Tạo File `.env`**
+
+```bash
+# Tạo từ file example (nếu có)
 cp .env.example .env
 
-# Hoặc tạo file .env mới
+# Hoặc tạo file mới
 ```
 
-### 2️⃣ Cấu hình `.env`
+### **Bước 2: Điền Thông Tin Vào `.env`**
 
-Mở file `.env` và điền thông tin:
+```env
+# ========== DATABASE ==========
+DATABASE_URL=postgresql+asyncpg://postgres:Lamvu123@localhost:5432/QTDA
+
+# ========== SECURITY & JWT ==========
+SECRET_KEY=b0cc87de129cfa89e85a6e9bddab68cbb678b3eb51a3f9c504c740c1994ea6f8
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+# ========== FRONTEND (CORS) ==========
+FRONTEND_URL=http://localhost:5500
+
+# ========== EMAIL (tùy chọn) ==========
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_app_password
+MAIL_FROM=no-reply@yourdomain.com
+MAIL_FROM_NAME=IT Project Management
+
+# ========== APP ==========
+DEBUG=True
+APP_NAME=IT Project Management System
+```
+
+### **Lưu Ý Quan Trọng:**
+
+- ⚠️ **KHÔNG commit file `.env` lên Git!** (Đã trong `.gitignore`)
+- 🔐 **SECRET_KEY:** Dùng `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- 🔑 **PASSWORD:** Thay `Lamvu123` bằng password PostgreSQL thực tế
+
+---
+
+## 🔧 Cấu Hình Alembic
+
+### **Bước 1: Kiểm Tra Alembic**
 
 ```bash
-# Database
-DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/QTDA
-
-# JWT
-SECRET_KEY=your-random-secret-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-ALGORITHM=HS256
-
-# App
-APP_NAME=IT Project Management System
-DEBUG=True
+alembic --version
 ```
 
-**Lưu ý:**
+✅ Nên hiện: `alembic 1.14.0`
+
+### **Bước 2: Cấu Hình `alembic.ini`**
+
+Tìm dòng (khoảng dòng 63):
+
+```ini
+sqlalchemy.url = driver://user:pass@localhost/dbname
+```
+
+Sửa thành:
+
+```ini
+sqlalchemy.url = postgresql://postgres:Lamvu123@localhost:5432/QuanTriDuAn
+```
+
+**Giải thích:**
+
+- `postgresql://` - Driver SYNC (Alembic chạy sync)
+- `postgres:Lamvu123` - Username:Password
+- `localhost:5432` - PostgreSQL host:port
+- `/QTDA` - Tên database
+
+### **Bước 3: Cấu Hình `alembic/env.py`**
+
+Tìm phần import (đầu file) và thêm:
+
+```python
+# ===== IMPORT MODELS =====
+from app.core.database import Base
+from app.models.model import User, Project, ProjectMember, Task
+```
+
+Tìm dòng:
+
+```python
+target_metadata = None
+```
+
+Sửa thành:
+
+```python
+target_metadata = Base.metadata
+```
+
+---
+
+## 📊 Chạy Migrations
+
+### **Bước 1: Tạo Migration Đầu Tiên**
+
+```bash
+alembic revision --autogenerate -m "init_tables"
+```
+
+✅ Sẽ tạo file migration trong `alembic/versions/`
+
+### **Bước 2: Áp Dụng Migration (Tạo Tables)**
+
+```bash
+alembic upgrade head
+```
+
+✅ Sẽ tạo 4 tables trong PostgreSQL:
+
+- `users`
+- `projects`
+- `project_members`
+- `tasks`
+
+### **Kiểm Tra Kết Quả**
+
+Mở **pgAdmin** → Database `QTDA` → Schemas → public → Tables
+
+Nên thấy 4 bảng mới
+
+---
+
+## 🚀 Khởi Chạy Backend
+
+### **Bước 1: Chạy Server**
+
+```bash
+uvicorn main:app --reload
+```
+
+✅ Output sẽ hiện:
+
+```
+Uvicorn running on http://127.0.0.1:8000
+```
+
+### **Bước 2: Truy Cập Swagger UI**
+
+Mở browser → `http://localhost:8000/docs`
+
+✅ Nên thấy Swagger UI với API documentation
+
+---
+
+## 📚 API Documentation
+
+- **Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc:** `http://localhost:8000/redoc`
+- **OpenAPI JSON:** `http://localhost:8000/openapi.json`
+
+---
+
+## 📁 Cấu Trúc Project
+
+```
+Backend/
+├── alembic/                 # Database migrations
+│   ├── versions/           # Các migration files
+│   ├── env.py             # Config Alembic
+│   └── script.py.mako     # Template migration
+├── app/
+│   ├── core/
+│   │   ├── config.py      # Load config từ .env
+│   │   ├── database.py    # Setup PostgreSQL async
+│   │   ├── security.py    # JWT + Bcrypt
+│   │   └── exceptions.py  # Custom exceptions
+│   ├── crud/              # CRUD operations
+│   │   ├── crud_user.py
+│   │   └── ...
+│   ├── models/
+│   │   └── model.py       # SQLAlchemy models
+│   ├── routers/           # API endpoints
+│   │   ├── auth.py
+│   │   ├── user.py
+│   │   └── ...
+│   ├── schemas/           # Pydantic schemas
+│   │   ├── sc_user.py
+│   │   └── ...
+│   └── utils/
+│       ├── constants.py
+│       └── validators.py
+├── main.py               # FastAPI app entry point
+├── requirements.txt      # Python dependencies
+├── .env                 # Environment variables (KHÔNG commit!)
+├── alembic.ini         # Alembic config
+└── README.md           # File này
+```
+
+---
+
+## 🛠️ Các Lệnh Hữu Ích
+
+### **Alembic Commands**
+
+```bash
+# Tạo migration mới
+alembic revision --autogenerate -m "message"
+
+# Xem history migrations
+alembic history
+
+# Xem current version
+alembic current
+
+# Rollback lần migration gần nhất
+alembic downgrade -1
+
+# Downgrade tất cả
+alembic downgrade base
+
+# Xem các branches
+alembic branches
+```
+
+### **Server Commands**
+
+```bash
+# Chạy development server
+uvicorn main:app --reload
+
+# Chạy production server (port 8000)
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Chạy trên port khác
+uvicorn main:app --port 8001 --reload
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### **Lỗi: "psycopg2 connection failed"**
+
+```
+❌ could not connect to server: Connection refused
+```
+
+✅ **Giải pháp:**
+
+1. Kiểm tra PostgreSQL đã start chưa
+2. Xác nhận username/password đúng trong `.env`
+3. Xác nhận database `QTDA` đã tạo chưa
+
+---
+
+### **Lỗi: "ModuleNotFoundError"**
+
+```
+❌ No module named 'fastapi'
+```
+
+✅ **Giải pháp:**
+
+1. Kiểm tra virtual environment đã activate chưa
+2. Chạy `pip install -r requirements.txt` lại
+3. Chạy `pip list` để verify packages
+
+---
+
+### **Lỗi: "alembic: command not found"**
+
+```
+❌ alembic: command not found
+```
+
+✅ **Giải pháp:**
+
+1. Kiểm tra virtual environment đã activate chưa
+2. Chạy `pip install alembic==1.14.0`
+
+---
+
+### **Lỗi: "SECRET_KEY is not set"**
+
+```
+❌ ValueError: SECRET_KEY is not set
+```
+
+✅ **Giải pháp:**
+
+1. Kiểm tra file `.env` tồn tại trong folder Backend
+2. Xác nhận `SECRET_KEY=...` đã điền vào `.env`
+3. Restart server
+
+---
+
+## 📞 Support
+
+Gặp vấn đề? Check:
+
+1. File `.env` đã cấu hình đúng chưa
+2. PostgreSQL đã chạy chưa
+3. Virtual environment đã activate chưa
+4. Tất cả requirements đã cài chưa
+
+---
+
+## ✅ Checklist Setup Hoàn Chỉnh
+
+- [ ] Python 3.10+ cài sẵn
+- [ ] PostgreSQL cài sẵn và chạy
+- [ ] Clone repository
+- [ ] Tạo virtual environment
+- [ ] Cài dependencies (`pip install -r requirements.txt`)
+- [ ] Tạo database `QTDA`
+- [ ] Tạo file `.env` với đúng config
+- [ ] Cấu hình `alembic.ini` và `alembic/env.py`
+- [ ] Chạy migrations (`alembic upgrade head`)
+- [ ] Khởi chạy server (`uvicorn main:app --reload`)
+- [ ] Truy cập `http://localhost:8000/docs` để kiểm tra
+
+🎉 **Nếu tất cả OK → Backend sẵn sàng!**
 
 - Thay `your_password` bằng mật khẩu PostgreSQL của bạn
 - Thay `QTDA` bằng tên database của bạn (hoặc tạo database mới)
 - Sinh random SECRET_KEY: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- **KHÔNG commit `.env` vào Git!** (File này đã trong `.gitignore`)
 
 ---
 
