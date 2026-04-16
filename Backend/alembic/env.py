@@ -4,15 +4,25 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+import os
+from pathlib import Path
 
-
-# ===== IMPORT MODELS =====
+# ===== IMPORT MODELS & SETTINGS =====
 from app.core.database import Base
 from app.models.model import User, Project, ProjectMember, Task
+from app.core.config import settings  # Đọc DATABASE_URL từ .env
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# ===== CONVERT ASYNC DATABASE_URL TO SYNC =====
+# DATABASE_URL trong .env là async (postgresql+asyncpg://...)
+# Alembic chạy sync nên cần chuyển sang postgresql+psycopg2:// hoặc postgresql://
+database_url = settings.DATABASE_URL
+if "postgresql+asyncpg://" in database_url:
+    # Thay postgresql+asyncpg:// thành postgresql+psycopg2://
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -44,7 +54,9 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # Lấy DATABASE_URL từ settings (.env file) - đã convert sang sync
+    url = database_url
+    
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -63,8 +75,13 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Lấy DATABASE_URL từ settings (.env file) - đã convert sang sync (postgresql+psycopg2://)
+    configuration = {
+        "sqlalchemy.url": database_url
+    }
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

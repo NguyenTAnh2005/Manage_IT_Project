@@ -105,27 +105,31 @@ Nhập password PostgreSQL. Nếu kết nối OK → `psql (version)` sẽ hiệ
 ### **Bước 1: Tạo File `.env`**
 
 ```bash
-# Tạo từ file example (nếu có)
+# Copy từ file example
 cp .env.example .env
-
-# Hoặc tạo file mới
 ```
 
 ### **Bước 2: Điền Thông Tin Vào `.env`**
 
 ```env
 # ========== DATABASE ==========
-DATABASE_URL=postgresql+asyncpg://postgres:Lamvu123@localhost:5432/QTDA
+# Format: postgresql+asyncpg://username:password@host:port/database_name
+# asyncpg = driver async (nhanh hơn psycopg2)
+# Ví dụ: postgresql+asyncpg://postgres:Lamvu123@localhost:5432/QuanTriDuAn
+DATABASE_URL=postgresql+asyncpg://postgres:YOUR_PASSWORD@localhost:5432/QuanTriDuAn
 
 # ========== SECURITY & JWT ==========
+# Tạo SECRET_KEY mạnh: python -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=b0cc87de129cfa89e85a6e9bddab68cbb678b3eb51a3f9c504c740c1994ea6f8
 ALGORITHM=HS256
+# Token hết hạn sau 1 ngày (1440 phút)
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 # ========== FRONTEND (CORS) ==========
+# URL của frontend (để CORS headers)
 FRONTEND_URL=http://localhost:5500
 
-# ========== EMAIL (tùy chọn) ==========
+# ========== EMAIL (Tùy chọn) ==========
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your_email@gmail.com
@@ -133,16 +137,37 @@ MAIL_PASSWORD=your_app_password
 MAIL_FROM=no-reply@yourdomain.com
 MAIL_FROM_NAME=IT Project Management
 
-# ========== APP ==========
+# ========== APP CONFIG ==========
 DEBUG=True
-APP_NAME=IT Project Management System
+PROJECT_NAME=Quản Lý Dự Án CNTT
 ```
 
 ### **Lưu Ý Quan Trọng:**
 
 - ⚠️ **KHÔNG commit file `.env` lên Git!** (Đã trong `.gitignore`)
-- 🔐 **SECRET_KEY:** Dùng `python -c "import secrets; print(secrets.token_urlsafe(32))"`
-- 🔑 **PASSWORD:** Thay `Lamvu123` bằng password PostgreSQL thực tế
+- 🔐 **SECRET_KEY:** Sinh key mạnh: `python -c "import secrets; print(secrets.token_hex(32))"`
+- 🔑 **DATABASE PASSWORD:** Thay `YOUR_PASSWORD` bằng password PostgreSQL thực tế
+- 📧 **EMAIL:** Chỉ cần nếu muốn gửi email (reset password, notifications)
+
+### **Kiểm Tra Kết Nối Database**
+
+```bash
+# Test kết nối database từ Python
+python -c "
+import asyncio
+from app.core.database import AsyncSessionLocal
+from sqlalchemy import text
+
+async def test():
+    async with AsyncSessionLocal() as session:
+        await session.execute(text('SELECT 1'))
+        print('✅ Database connected!')
+
+asyncio.run(test())
+"
+```
+
+✅ Nếu thấy `✅ Database connected!` → Config đúng
 
 ---
 
@@ -156,48 +181,36 @@ alembic --version
 
 ✅ Nên hiện: `alembic 1.14.0`
 
-### **Bước 2: Cấu Hình `alembic.ini`**
+### **Bước 2: Cấu Hình `alembic/env.py` (QUAN TRỌNG)**
 
-Tìm dòng (khoảng dòng 63):
+File `alembic/env.py` đã được cấu hình để **đọc `DATABASE_URL` từ file `.env`** (không hardcode).
+
+✅ **Đã tự động:**
+
+- Import `settings` từ `app.core.config`
+- Convert async URL (`postgresql+asyncpg://`) → sync URL (`postgresql+psycopg2://`)
+- Sử dụng `database_url` cho cả offline và online migrations
+
+```python
+# alembic/env.py - Dòng quan trọng:
+from app.core.config import settings
+
+# Convert ASYNC -> SYNC
+database_url = settings.DATABASE_URL
+if "postgresql+asyncpg://" in database_url:
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+```
+
+### **Bước 3: Kiểm Tra `alembic.ini`**
+
+✅ **Dòng 63 - KHÔNG cần hardcode DATABASE_URL:**
 
 ```ini
-sqlalchemy.url = driver://user:pass@localhost/dbname
+# sqlalchemy.url is read from .env file via alembic/env.py
+# See app/core/config.py for DATABASE_URL configuration
 ```
 
-Sửa thành:
-
-```ini
-sqlalchemy.url = postgresql://postgres:Lamvu123@localhost:5432/QuanTriDuAn
-```
-
-**Giải thích:**
-
-- `postgresql://` - Driver SYNC (Alembic chạy sync)
-- `postgres:Lamvu123` - Username:Password
-- `localhost:5432` - PostgreSQL host:port
-- `/QTDA` - Tên database
-
-### **Bước 3: Cấu Hình `alembic/env.py`**
-
-Tìm phần import (đầu file) và thêm:
-
-```python
-# ===== IMPORT MODELS =====
-from app.core.database import Base
-from app.models.model import User, Project, ProjectMember, Task
-```
-
-Tìm dòng:
-
-```python
-target_metadata = None
-```
-
-Sửa thành:
-
-```python
-target_metadata = Base.metadata
-```
+⚠️ **LƯU Ý:** Không cần sửa gì, Alembic sẽ tự động đọc từ `.env` file
 
 ---
 
@@ -209,7 +222,7 @@ target_metadata = Base.metadata
 alembic revision --autogenerate -m "init_tables"
 ```
 
-✅ Sẽ tạo file migration trong `alembic/versions/`
+✅ Sẽ tạo file migration trong `alembic/versions/` (tự động detect models)
 
 ### **Bước 2: Áp Dụng Migration (Tạo Tables)**
 
@@ -217,18 +230,40 @@ alembic revision --autogenerate -m "init_tables"
 alembic upgrade head
 ```
 
+✅ Output sẽ hiện:
+
+```
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.migration] Running upgrade... -> xxxxx, init_tables
+```
+
 ✅ Sẽ tạo 4 tables trong PostgreSQL:
 
-- `users`
-- `projects`
-- `project_members`
-- `tasks`
+- `users` - Người dùng
+- `projects` - Dự án
+- `project_members` - Thành viên dự án
+- `tasks` - Công việc
 
-### **Kiểm Tra Kết Quả**
+### **Bước 3: Kiểm Tra Kết Quả**
 
-Mở **pgAdmin** → Database `QTDA` → Schemas → public → Tables
+```bash
+# Xem current migration version
+alembic current
+```
 
-Nên thấy 4 bảng mới
+✅ Output:
+
+```
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+xxxxx (head)
+```
+
+**Kiểm tra pgAdmin:**
+
+Mở **pgAdmin** → Database `QuanTriDuAn` → Schemas → public → Tables
+
+Nên thấy 4 bảng mới với các columns tương ứng
 
 ---
 
@@ -341,24 +376,123 @@ uvicorn main:app --port 8001 --reload
 
 ## 🐛 Troubleshooting
 
+### **Lỗi: "Can't locate revision"**
+
+```
+ERROR [alembic.util.messaging] Can't locate revision identified by 'xxxxx'
+```
+
+✅ **Giải pháp:**
+
+```bash
+# Xóa migration history và tạo lại
+rm alembic/versions/*.py  # Xóa các migration cũ
+alembic revision --autogenerate -m "init_tables"
+alembic upgrade head
+```
+
+---
+
+### **Lỗi: "database does not exist"**
+
+```
+FATAL: database "QuanTriDuAn" does not exist
+```
+
+✅ **Giải pháp:**
+
+1. Tạo database trong PostgreSQL:
+
+```bash
+psql -U postgres -c "CREATE DATABASE QuanTriDuAn;"
+```
+
+2. Hoặc dùng pgAdmin:
+   - Kết nối PostgreSQL
+   - Right-click "Databases"
+   - Create → Database
+   - Name: `QuanTriDuAn`
+   - Click Create
+
+3. Kiểm tra `.env` có tên database đúng không
+
+---
+
+### **Lỗi: "connection refused - PostgreSQL not running"**
+
+```
+could not connect to server: Connection refused
+```
+
+✅ **Giải pháp:**
+
+- **Windows:** Kiểm tra Services → PostgreSQL
+- **macOS:** `brew services start postgresql`
+- **Linux:** `sudo systemctl start postgresql`
+
+---
+
+### **Lỗi: "UnicodeDecodeError in alembic.ini"**
+
+```
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x8d
+```
+
+✅ **Giải pháp:**
+
+Không thêm comment Tiếng Việt vào `alembic.ini` (chỉ tiếng Anh)
+
+---
+
+### **Lỗi: "greenlet_spawn has not been called"**
+
+```
+sqlalchemy.exc.MissingGreenlet: greenlet_spawn has not been called
+```
+
+✅ **Giải pháp:**
+
+Lỗi này bình thường khi chạy `alembic` (chạy sync, database_url được convert). Bỏ qua!
+
+---
+
 ### **Lỗi: "psycopg2 connection failed"**
 
 ```
-❌ could not connect to server: Connection refused
+could not connect to server: Connection refused
 ```
 
 ✅ **Giải pháp:**
 
 1. Kiểm tra PostgreSQL đã start chưa
-2. Xác nhận username/password đúng trong `.env`
-3. Xác nhận database `QTDA` đã tạo chưa
+2. Xác nhận username/password trong `.env` đúng
+3. Xác nhận database đã tạo chưa
+4. Test kết nối:
+
+```bash
+python -c "
+import asyncio
+from app.core.database import AsyncSessionLocal
+from sqlalchemy import text
+
+async def test():
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text('SELECT 1'))
+        print('✅ Database connected!')
+    except Exception as e:
+        print(f'❌ Error: {e}')
+
+asyncio.run(test())
+"
+```
 
 ---
 
 ### **Lỗi: "ModuleNotFoundError"**
 
 ```
-❌ No module named 'fastapi'
+No module named 'fastapi'
 ```
 
 ✅ **Giải pháp:**
@@ -372,7 +506,7 @@ uvicorn main:app --port 8001 --reload
 ### **Lỗi: "alembic: command not found"**
 
 ```
-❌ alembic: command not found
+alembic: command not found
 ```
 
 ✅ **Giải pháp:**
@@ -385,7 +519,7 @@ uvicorn main:app --port 8001 --reload
 ### **Lỗi: "SECRET_KEY is not set"**
 
 ```
-❌ ValueError: SECRET_KEY is not set
+ValueError: SECRET_KEY is not set
 ```
 
 ✅ **Giải pháp:**
@@ -393,6 +527,35 @@ uvicorn main:app --port 8001 --reload
 1. Kiểm tra file `.env` tồn tại trong folder Backend
 2. Xác nhận `SECRET_KEY=...` đã điền vào `.env`
 3. Restart server
+
+---
+
+### **Port 8000 đã được sử dụng**
+
+```
+Address already in use
+```
+
+✅ **Giải pháp:**
+
+```bash
+# Chạy trên port khác
+uvicorn main:app --reload --port 8001
+```
+
+---
+
+### **Lỗi: "Connection reset by peer"**
+
+```
+ConnectionResetError: [Errno 104] Connection reset by peer
+```
+
+✅ **Giải pháp:**
+
+1. Kiểm tra PostgreSQL còn chạy không
+2. Kiểm tra connection pool settings trong `app/core/database.py`
+3. Restart PostgreSQL service
 
 ---
 
