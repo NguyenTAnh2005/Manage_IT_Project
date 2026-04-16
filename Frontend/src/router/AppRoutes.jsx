@@ -6,8 +6,8 @@ import DashBoardLayout from '../components/layout/DashBoardLayout';
 // import AuthLayout from '../layouts/AuthLayout';
 // import DashboardLayout from '../layouts/DashboardLayout';
 import Login from '../page/Login';
-// import JoinProject from '../pages/JoinProject';
-// import WbsBoard from '../pages/WbsBoard';
+import JoinProject from '../page/JoinProject';
+import WbsDashBoard from '../page/WBS'
 
 export const AppRoutes = () => {
     return (
@@ -24,14 +24,14 @@ export const AppRoutes = () => {
                 <Route element={<ProtectedRoute />}>
                     
                     {/* Vượt qua Login thì được vào trang Nhập mã */}
-                    <Route path="/join-project" element={<div>Trang Nhập Mã Dự Án</div>} />
+                    <Route path="/join-project" element={<JoinProject/>} />
 
                     {/* Vượt qua Nhập mã thì được vào Dashboard Layout */}
                     {/* Chú ý: Có chữ :projectCode để bắt cái mã HABIT_01 từ URL */}
                     <Route path="/dashboard/:projectCode" element={<DashBoardLayout/>}>
                         
                         {/* Đây là các trang con nhét vào giữa Dashboard Layout (Outlet) */}
-                        <Route path="wbs" element={<div>Bảng WBS</div>} />
+                        <Route path="wbs" element={<WbsDashBoard/>} />
                         <Route path="kanban" element={<div>Bảng Kanban</div>} />
                         <Route path="gantt" element={<div>Biểu đồ Gantt</div>} />
                         <Route path="cost" element={<div>Bảng Chi Phí</div>} />

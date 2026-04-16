@@ -8,8 +8,15 @@ export const ProtectedRoute = () =>{
     if(!isAuthenticated){
         return <Navigate to={'/login'} replace/>
     }
-    if(!projectCode && location.pathname !== '/join-project'){
-        return <Navigate to={'/join-project'} replace />
+    if(!projectCode){
+        if (location.pathname !== '/join-project'){
+            return <Navigate to = {'/join-project'} replace/>
+        }
+    }
+    if(projectCode){
+        if(location.pathname === '/join-project'){
+            return <Navigate to={`/dashboard/${projectCode}/wbs`} replace />
+        }
     }
     return <Outlet/>
 }
