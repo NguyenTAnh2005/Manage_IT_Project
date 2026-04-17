@@ -166,7 +166,7 @@ async def login(
             )
         
         # Tạo JWT token
-        access_token, jti, expire = create_access_token(
+        access_token = create_access_token(
             data={"sub": str(user.id)}
         )
         
