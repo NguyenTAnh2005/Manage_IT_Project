@@ -36,10 +36,10 @@ export const AppRoutes = () => {
                         <Route path="gantt" element={<div>Biểu đồ Gantt</div>} />
                         <Route path="cost" element={<div>Bảng Chi Phí</div>} />
                         
-                        {/* Nếu user chỉ gõ /dashboard/HABIT_01 -> Tự động đá sang wbs */}
-                        <Route index element={<Navigate to="wbs" replace />} />
-                    </Route>
 
+                    </Route>
+                    {/* Nếu user chỉ gõ /dashboard/HABIT_01 -> Tự động đá sang wbs */}
+                    <Route index element={<Navigate to="/dashboard/:projectCode/wbs" replace />} />
                 </Route>
 
                 {/* ================================================== */}
