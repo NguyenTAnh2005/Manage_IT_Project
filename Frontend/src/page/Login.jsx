@@ -13,7 +13,7 @@ const Login = () =>{
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const {login, isAuthenticated} = useAuth();
+    const {logIn, isAuthenticated} = useAuth();
 
 
     const navigate = useNavigate();
@@ -31,8 +31,9 @@ const Login = () =>{
 
         try{
             const res = await authService.login(email, password);
-            login(res.access_token);
+            logIn(res.access_token);
             navigate("/join-project");
+            console.log(res);
         }
         catch (err){
             console.error("Failed to login: ", err);

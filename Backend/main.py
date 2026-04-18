@@ -3,6 +3,8 @@ from fastapi.exceptions import RequestValidationError  # Import exception type
 from app.routers import auth, user, project, task  # Import routers
 from app.core.exceptions import validation_exception_handler  # Import custom handler
 
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
 
 app = FastAPI(
     title="API Quản Trị Dự Án CNTT",
@@ -16,6 +18,19 @@ app = FastAPI(
 # Register custom handler cho Pydantic validation errors → trả message tiếng Việt
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
+# ========================================
+# CORC SETTINGS
+# ========================================
+origins = [
+    settings.FRONTEND_URL,
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"] 
+)
 # ========================================
 # INCLUDE ROUTERS
 # ========================================
