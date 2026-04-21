@@ -24,28 +24,31 @@ const JoinProject = () => {
         setLoading(true);
 
         try {
-            // 1. Gọi API gửi mã xuống cho Vũ check
+            // 1. Gọi API gửi mã xuống cho Backend
+            // (Backend giờ cực mượt: Đã join hay chưa join đều trả về 200 OK)
             await projectService.joinProject(cleanCode);
             
-            // 2. Nếu Thành công (Chưa từng join, giờ mới join)
+            // 2. Thành công -> Lưu context và chuyển hướng
             joinProject(cleanCode);
             navigate(`/dashboard/${cleanCode}/wbs`);
 
         } catch (err) {
-            // 3. Xử lý kịch bản lỗi từ Backend
+            // 3. Xử lý kịch bản lỗi chuẩn chỉ
             const status = err.response?.status;
-            const detail = err.response?.data?.detail;
+            const data = err.response?.data; // Lấy toàn bộ data lỗi
 
-            if (status === 400 && detail === "Bạn đã là member của project này") {
-                // CÚ LỪA CỦA BACKEND: Đã là member thì cứ mở cửa cho vào thôi!
-                joinProject(cleanCode);
-                navigate(`/dashboard/${cleanCode}/wbs`);
-            } 
-            else if (status === 404) {
+            if (status === 404) {
                 setError("Mã dự án không tồn tại! Vui lòng kiểm tra lại.");
             } 
+            else if (status === 422) {
+                // Hứng lỗi Validation từ exceptions.py của backend
+                // Ví dụ: Nhập thiếu ký tự, sai định dạng regex
+                const validationMsg = data?.errors?.[0]?.message || "Định dạng mã không hợp lệ (Yêu cầu 6-10 ký tự, viết hoa, không dấu)";
+                setError(`Lỗi nhập liệu: ${validationMsg}`);
+            }
             else {
-                setError("Có lỗi xảy ra từ máy chủ. Vui lòng thử lại sau.");
+                // Các lỗi khác (500, mạng đứt...)
+                setError(data?.detail || data?.message || "Có lỗi xảy ra từ máy chủ. Vui lòng thử lại sau.");
                 console.error("Lỗi Join Project:", err);
             }
         } finally {

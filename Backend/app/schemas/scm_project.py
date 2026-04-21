@@ -79,37 +79,14 @@ class ProjectUpdate(BaseModel):
 
 # ========== RESPONSE ==========
 class ProjectResponse(BaseModel):
-    """
-    Schema để trả về thông tin project.
-    Dùng cho GET endpoints.
-    
-    Fields:
-        - id (int): ID project
-        - project_code (str): Mã project
-        - name (str): Tên project
-        - description (str): Mô tả project
-        - created_at (datetime): Thời gian tạo
-        - updated_at (datetime): Thời gian cập nhật cuối
-    
-    Ví dụ:
-        {
-            "id": 1,
-            "project_code": "PRJMNG001",
-            "name": "Quản Lý Dự Án IT",
-            "description": "Dự án quản lý dự án CNTT",
-            "created_at": "2026-04-16T10:30:00",
-            "updated_at": "2026-04-16T10:30:00"
-        }
-    """
     id: int = Field(..., description="ID project")
     project_code: str = Field(..., description="Mã project (unique)")
     name: str = Field(..., description="Tên project")
-    description: str = Field(..., description="Mô tả project")
+    description: str | None = Field(default=None, description="Mô tả project") 
     created_at: datetime = Field(..., description="Thời gian tạo")
     updated_at: datetime = Field(..., description="Thời gian cập nhật cuối")
     
     class Config:
-        # Cho phép convert SQLAlchemy model thành Pydantic model
         from_attributes = True
 
 

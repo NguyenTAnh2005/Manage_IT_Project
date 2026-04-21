@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export const InputPassword = ({ label, placeholder, value, onChange }) => {
+export const InputPassword = ({ label, placeholder, value, onChange, isRequired }) => {
     const [hidePass, setHidePass] = useState(true);
 
     const togglePasswordVisibility = () => {
@@ -20,7 +20,7 @@ export const InputPassword = ({ label, placeholder, value, onChange }) => {
             </label>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <input
-                    required
+                    required = {isRequired}
                     placeholder={placeholder}
                     onChange={onChange}
                     value={value}

@@ -1,421 +1,172 @@
-"""
-🌱 SEED DATA SCRIPT - Dữ liệu mẫu cho Backend Testing
-
-Tệp này tạo dữ liệu mẫu toàn bộ hệ thống:
-- 3 người dùng (users)
-- 2 dự án (projects)
-- Phân công thành viên dự án (project_members)
-- Nhiều công việc phân cấp (tasks) - WBS Tree Structure
-- PERT estimates (mo, ml, mp) - cho tính toán
-- Dates & Costs - cho Gantt & Cost Analysis
-
-Chạy: python seed_data.py
-"""
-
 import asyncio
-from datetime import datetime, timedelta
-from app.core.database import AsyncSessionLocal, Base, engine
+from datetime import datetime, timedelta, date
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# Import database session và models từ project
+from app.core.database import AsyncSessionLocal
 from app.models.model import User, Project, ProjectMember, Task, RoleEnum, TaskStatusEnum
-from app.core.security import hash_password
+from app.core.security import hash_password 
 
+async def run_seed():
+    print("🚀 Bắt đầu quá trình seed dữ liệu Vippro...")
+    async with AsyncSessionLocal() as db:
+        try:
+            # ========================================
+            # 1. TẠO USERS
+            # ========================================
+            print("⏳ Đang tạo Users...")
+            user_tuan_anh = User(
+                email="tuananh@example.com", 
+                password_hash=hash_password("tuananh123!"), 
+                full_name="Tuấn Anh"
+            )
+            user_vu = User(
+                email="vu@example.com", 
+                password_hash=hash_password("lamvu123!"), 
+                full_name="Vũ"
+            )
+            
+            db.add_all([user_tuan_anh, user_vu])
+            await db.flush() 
 
-async def seed_database():
-    """
-    Tạo bảng (nếu chưa tồn tại) và insert dữ liệu mẫu
-    """
-    print("🌱 Bắt đầu seed data...")
+            # ========================================
+            # 2. TẠO PROJECT
+            # ========================================
+            print("⏳ Đang tạo Project...")
+            project = Project(
+                project_code="PM_APP_01",
+                name="Ứng dụng Quản trị Dự án",
+                description="Dự án thực hành code chung của Tuấn Anh và Vũ",
+            )
+            db.add(project)
+            await db.flush()
 
-    # ==========================================
-    # 1. TẠO BẢNG (Create tables if not exists)
-    # ==========================================
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ Database tables created/verified")
+            # ========================================
+            # 3. PHÂN QUYỀN (PROJECT MEMBERS)
+            # ========================================
+            print("⏳ Đang phân quyền...")
+            pm_role = ProjectMember(user_id=user_tuan_anh.id, project_id=project.id, role=RoleEnum.PM)
+            member_role = ProjectMember(user_id=user_vu.id, project_id=project.id, role=RoleEnum.MEMBER)
+            db.add_all([pm_role, member_role])
+            await db.flush()
 
-    # ==========================================
-    # 2. TẠO SESSION VÀ CLEAR DỮ LIỆU CŨ (Optional)
-    # ==========================================
-    async with AsyncSessionLocal() as session:
-        # Xóa dữ liệu cũ (tùy chọn - uncomment để xóa)
-        # await session.query(Task).delete()
-        # await session.query(ProjectMember).delete()
-        # await session.query(Project).delete()
-        # await session.query(User).delete()
-        # await session.commit()
-        # print("🗑️ Old data cleared")
+            # ========================================
+            # 4. TẠO TASKS (WBS TỪ EXCEL)
+            # ========================================
+            print("⏳ Đang tạo cây công việc (WBS) với logic tính tổng & ngày tháng...")
+            
+            wbs_data = [
+                {
+                    "parent": "1. Khởi tạo & Phân quyền (Login)",
+                    "children": [
+                        {"name": "1.1 [FE] Tạo dự án Vite + React + Tailwind", "owner": user_tuan_anh.id},
+                        {"name": "1.1 [BE] Khởi tạo FastAPI + SQLAlchemy", "owner": user_vu.id},
+                        {"name": "1.2 [FE] Phối hợp chốt schema JSON", "owner": user_tuan_anh.id},
+                        {"name": "1.2 [BE] Thiết kế 4 bảng (Users, Projects, Tasks...)", "owner": user_vu.id},
+                        {"name": "1.3 [FE] Dựng Form Login, lưu Token (Local Storage)", "owner": user_tuan_anh.id},
+                        {"name": "1.3 [BE] Code API Login, tạo & mã hóa JWT", "owner": user_vu.id},
+                        {"name": "1.4 [FE] Dựng Form nhập mã, gọi API join dự án", "owner": user_tuan_anh.id},
+                        {"name": "1.4 [BE] Code API kiểm tra mã & phân quyền", "owner": user_vu.id},
+                    ]
+                },
+                {
+                    "parent": "2. Quản lý WBS & PERT",
+                    "children": [
+                        {"name": "2.1 [FE] Dùng AntD/MUI dựng Table hiển thị dạng Cha-Con", "owner": user_tuan_anh.id},
+                        {"name": "2.1 [BE] API CRUD cho bảng Tasks", "owner": user_vu.id},
+                        {"name": "2.2 [FE] Làm Form nhập 3 số MO, ML, MP", "owner": user_tuan_anh.id},
+                        {"name": "2.2 [BE] Viết logic tính EST, cập nhật vào DB", "owner": user_vu.id},
+                        {"name": "2.3 [FE] Thêm cột nhập Tiền vào bảng Table", "owner": user_tuan_anh.id},
+                        {"name": "2.3 [BE] Cập nhật API Tasks để nhận & lưu biến số Tiền", "owner": user_vu.id},
+                    ]
+                },
+                {
+                    "parent": "3. Trực quan hóa (Kanban & Gantt)",
+                    "children": [
+                        {"name": "3.1 [FE] Tích hợp thư viện (dnd-kit), code giao diện kéo thả", "owner": user_tuan_anh.id},
+                        {"name": "3.1 [BE] API Update Status (/tasks/{id}/status)", "owner": user_vu.id},
+                        {"name": "3.2 [FE] Tích hợp thư viện Gantt, map data ngày tháng", "owner": user_tuan_anh.id},
+                        {"name": "3.2 [BE] (Đã có data từ API Tasks, hỗ trợ test)", "owner": user_vu.id},
+                        {"name": "3.3 [FE] Viết file báo cáo UI/UX, hướng dẫn sử dụng", "owner": user_tuan_anh.id},
+                        {"name": "3.3 [BE] Khởi chạy test Postman hoặc Swagger UI, fix bug logic API", "owner": user_vu.id},
+                    ]
+                }
+            ]
 
-        # ==========================================
-        # 3. TẠO NGƯỜI DÙNG (USERS)
-        # ==========================================
-        print("\n📝 Creating users...")
+            # Khởi tạo ngày bắt đầu: 3 tuần trước
+            today = datetime.utcnow().date()
+            current_date = today - timedelta(weeks=3)
 
-        users = [
-            User(
-                email="tuananh@example.com",
-                password_hash=hash_password("Password123!"),
-                full_name="Nguyễn Tuấn Anh",
-            ),
-            User(
-                email="hoangminh@example.com",
-                password_hash=hash_password("Password123!"),
-                full_name="Hoàng Minh Đức",
-            ),
-            User(
-                email="thule@example.com",
-                password_hash=hash_password("Password123!"),
-                full_name="Thủ Lê Phương",
-            ),
-        ]
+            for section in wbs_data:
+                # 4.1 Tạo Task Cha (Chưa có thông số, cập nhật sau)
+                parent_task = Task(
+                    project_id=project.id,
+                    name=section["parent"],
+                    status=TaskStatusEnum.TODO,
+                    cost_total=0.0
+                )
+                db.add(parent_task)
+                await db.flush() # Lấy parent_id
 
-        session.add_all(users)
-        await session.flush()  # Flush để lấy ID
-        print(f"✅ Created {len(users)} users")
+                # Các biến để cộng dồn cho Task Cha
+                sum_mo = 0.0
+                sum_ml = 0.0
+                sum_mp = 0.0
+                sum_cost = 0.0
+                parent_start_date = current_date
+                parent_end_date = current_date
 
-        user_tuananh = users[0]
-        user_hoangminh = users[1]
-        user_thule = users[2]
+                # 4.2 Tạo các Task Con
+                for child in section["children"]:
+                    # Set cứng mỗi task nhỏ mất khoảng 3 ngày để làm
+                    child_start = current_date
+                    child_end = current_date + timedelta(days=2) 
+                    
+                    child_mo = 2.0
+                    child_ml = 3.0
+                    child_mp = 5.0
+                    child_est = (child_mo + 4 * child_ml + child_mp) / 6
+                    child_cost = 100.0
 
-        # ==========================================
-        # 4. TẠO DỰ ÁN (PROJECTS)
-        # ==========================================
-        print("\n📋 Creating projects...")
+                    child_task = Task(
+                        project_id=project.id,
+                        parent_id=parent_task.id,
+                        owner_id=child["owner"],
+                        name=child["name"],
+                        status=TaskStatusEnum.TODO,
+                        mo=child_mo, ml=child_ml, mp=child_mp, est=child_est,
+                        cost_total=child_cost,
+                        start_date=child_start,
+                        end_date=child_end
+                    )
+                    db.add(child_task)
 
-        projects = [
-            Project(
-                project_code="QTDA001",
-                name="Quản Lý Dự Án CNTT",
-                description="Hệ thống quản lý dự án công nghệ thông tin",
-            ),
-            Project(
-                project_code="WEBNEW",
-                name="Website E-Commerce",
-                description="Phát triển website bán hàng trực tuyến",
-            ),
-        ]
+                    # Cộng dồn số liệu lên cho Task Cha
+                    sum_mo += child_mo
+                    sum_ml += child_ml
+                    sum_mp += child_mp
+                    sum_cost += child_cost
+                    parent_end_date = child_end
 
-        session.add_all(projects)
-        await session.flush()
-        print(f"✅ Created {len(projects)} projects")
+                    # Dịch chuyển ngày cho Task tiếp theo (cộng thêm 3 ngày)
+                    current_date = child_end + timedelta(days=1)
 
-        project1 = projects[0]
-        project2 = projects[1]
+                # 4.3 Cập nhật ngược lại thông số cho Task Cha
+                parent_task.mo = sum_mo
+                parent_task.ml = sum_ml
+                parent_task.mp = sum_mp
+                parent_task.est = (sum_mo + 4 * sum_ml + sum_mp) / 6
+                parent_task.cost_total = sum_cost
+                parent_task.start_date = parent_start_date
+                parent_task.end_date = parent_end_date
+            
+            # Lưu toàn bộ
+            await db.commit()
+            print("✅ Seed dữ liệu WBS siêu xịn thành công rực rỡ!")
 
-        # ==========================================
-        # 5. PHÂN CÔNG DỰ ÁN (PROJECT MEMBERS)
-        # ==========================================
-        print("\n👥 Creating project members...")
-
-        project_members = [
-            # Project 1: QTDA001
-            ProjectMember(
-                project_id=project1.id,
-                user_id=user_tuananh.id,
-                role=RoleEnum.PM,  # Trưởng dự án
-            ),
-            ProjectMember(
-                project_id=project1.id,
-                user_id=user_hoangminh.id,
-                role=RoleEnum.MEMBER,  # Thành viên
-            ),
-            ProjectMember(
-                project_id=project1.id,
-                user_id=user_thule.id,
-                role=RoleEnum.MEMBER,
-            ),
-            # Project 2: WEBNEW
-            ProjectMember(
-                project_id=project2.id,
-                user_id=user_hoangminh.id,
-                role=RoleEnum.PM,
-            ),
-            ProjectMember(
-                project_id=project2.id,
-                user_id=user_thule.id,
-                role=RoleEnum.MEMBER,
-            ),
-        ]
-
-        session.add_all(project_members)
-        await session.flush()
-        print(f"✅ Created {len(project_members)} project memberships")
-
-        # ==========================================
-        # 6. TẠO CÔNG VIỆC (TASKS) - WBS TREE
-        # ==========================================
-        print("\n📌 Creating tasks with hierarchical structure...")
-
-        # --- PROJECT 1: QTDA001 ---
-        # Level 1 (Parent tasks)
-        task_1_1 = Task(
-            project_id=project1.id,
-            name="Thiết kế và kiến trúc hệ thống",
-            status=TaskStatusEnum.DOING,
-            start_date=datetime.now().date(),
-            end_date=(datetime.now() + timedelta(days=30)).date(),
-            mo=10,
-            ml=15,
-            mp=25,
-            cost_total=5000,
-        )
-
-        task_1_2 = Task(
-            project_id=project1.id,
-            name="Phát triển Backend",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=30)).date(),
-            end_date=(datetime.now() + timedelta(days=70)).date(),
-            mo=20,
-            ml=30,
-            mp=50,
-            cost_total=10000,
-        )
-
-        task_1_3 = Task(
-            project_id=project1.id,
-            name="Phát triển Frontend",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=40)).date(),
-            end_date=(datetime.now() + timedelta(days=80)).date(),
-            mo=20,
-            ml=25,
-            mp=40,
-            cost_total=8000,
-        )
-
-        task_1_4 = Task(
-            project_id=project1.id,
-            name="Testing & QA",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=80)).date(),
-            end_date=(datetime.now() + timedelta(days=100)).date(),
-            mo=10,
-            ml=15,
-            mp=20,
-            cost_total=3000,
-        )
-
-        # Level 2 (Subtasks của task_1_1)
-        task_1_1_1 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Phân tích yêu cầu chức năng",
-            status=TaskStatusEnum.DONE,
-            start_date=datetime.now().date(),
-            end_date=(datetime.now() + timedelta(days=10)).date(),
-            mo=3,
-            ml=5,
-            mp=8,
-            cost_total=1000,
-        )
-
-        task_1_1_2 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Thiết kế Database",
-            status=TaskStatusEnum.DOING,
-            start_date=(datetime.now() + timedelta(days=8)).date(),
-            end_date=(datetime.now() + timedelta(days=18)).date(),
-            mo=4,
-            ml=6,
-            mp=10,
-            cost_total=1500,
-        )
-
-        task_1_1_3 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Thiết kế API Endpoints",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=15)).date(),
-            end_date=(datetime.now() + timedelta(days=30)).date(),
-            mo=3,
-            ml=5,
-            mp=7,
-            cost_total=1500,
-        )
-
-        # Level 2 (Subtasks của task_1_2)
-        task_1_2_1 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Cài đặt FastAPI & Dependencies",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=30)).date(),
-            end_date=(datetime.now() + timedelta(days=35)).date(),
-            mo=2,
-            ml=3,
-            mp=5,
-            cost_total=500,
-        )
-
-        task_1_2_2 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Phát triển API Authentication",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=35)).date(),
-            end_date=(datetime.now() + timedelta(days=50)).date(),
-            mo=8,
-            ml=12,
-            mp=20,
-            cost_total=3000,
-        )
-
-        task_1_2_3 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Phát triển API Projects & Tasks",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=48)).date(),
-            end_date=(datetime.now() + timedelta(days=70)).date(),
-            mo=10,
-            ml=15,
-            mp=25,
-            cost_total=5000,
-        )
-
-        # Level 2 (Subtasks của task_1_3)
-        task_1_3_1 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Thiết kế giao diện UI",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=40)).date(),
-            end_date=(datetime.now() + timedelta(days=50)).date(),
-            mo=5,
-            ml=8,
-            mp=12,
-            cost_total=2000,
-        )
-
-        task_1_3_2 = Task(
-            project_id=project1.id,
-            parent_id=None,  # Will be set after flush
-            name="Phát triển components React",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=48)).date(),
-            end_date=(datetime.now() + timedelta(days=80)).date(),
-            mo=10,
-            ml=15,
-            mp=20,
-            cost_total=4000,
-        )
-
-        # Add all tasks
-        all_tasks = [
-            task_1_1, task_1_2, task_1_3, task_1_4,
-            task_1_1_1, task_1_1_2, task_1_1_3,
-            task_1_2_1, task_1_2_2, task_1_2_3,
-            task_1_3_1, task_1_3_2,
-        ]
-
-        session.add_all(all_tasks)
-        await session.flush()
-
-        # Set parent relationships
-        task_1_1_1.parent_id = task_1_1.id
-        task_1_1_2.parent_id = task_1_1.id
-        task_1_1_3.parent_id = task_1_1.id
-        task_1_2_1.parent_id = task_1_2.id
-        task_1_2_2.parent_id = task_1_2.id
-        task_1_2_3.parent_id = task_1_2.id
-        task_1_3_1.parent_id = task_1_3.id
-        task_1_3_2.parent_id = task_1_3.id
-
-        # --- PROJECT 2: WEBNEW ---
-        task_2_1 = Task(
-            project_id=project2.id,
-            name="Thiết kế mockup trang web",
-            status=TaskStatusEnum.DOING,
-            start_date=datetime.now().date(),
-            end_date=(datetime.now() + timedelta(days=15)).date(),
-            mo=5,
-            ml=8,
-            mp=12,
-            cost_total=2000,
-        )
-
-        task_2_2 = Task(
-            project_id=project2.id,
-            name="Phát triển trang chủ",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=15)).date(),
-            end_date=(datetime.now() + timedelta(days=35)).date(),
-            mo=8,
-            ml=12,
-            mp=18,
-            cost_total=3000,
-        )
-
-        task_2_3 = Task(
-            project_id=project2.id,
-            name="Phát triển trang sản phẩm",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=30)).date(),
-            end_date=(datetime.now() + timedelta(days=50)).date(),
-            mo=8,
-            ml=10,
-            mp=15,
-            cost_total=2500,
-        )
-
-        task_2_4 = Task(
-            project_id=project2.id,
-            name="Tích hợp thanh toán",
-            status=TaskStatusEnum.TODO,
-            start_date=(datetime.now() + timedelta(days=50)).date(),
-            end_date=(datetime.now() + timedelta(days=70)).date(),
-            mo=10,
-            ml=15,
-            mp=25,
-            cost_total=4000,
-        )
-
-        session.add_all([task_2_1, task_2_2, task_2_3, task_2_4])
-        await session.flush()
-
-        # ==========================================
-        # 7. TÍNH TOÁN EST (Estimated Time)
-        # ==========================================
-        print("\n⏱️ Calculating EST values...")
-
-        for task in all_tasks + [task_2_1, task_2_2, task_2_3, task_2_4]:
-            if task.mo and task.ml and task.mp:
-                task.est = task.calculate_est()
-
-        # ==========================================
-        # 8. COMMIT TẬT CẢ
-        # ==========================================
-        await session.commit()
-
-        print("\n✅ Seed data created successfully!")
-        print("\n" + "="*60)
-        print("📊 SUMMARY:")
-        print("="*60)
-        print(f"✅ Users created: {len(users)}")
-        print(f"✅ Projects created: {len(projects)}")
-        print(f"✅ Project members: {len(project_members)}")
-        print(f"✅ Tasks created: {len(all_tasks) + 4}")
-        print("\n📋 Users:")
-        for user in users:
-            print(f"  - {user.email} ({user.full_name})")
-        print("\n📌 Projects:")
-        for project in projects:
-            print(f"  - {project.project_code} - {project.name}")
-        print("\n🔑 Test Credentials:")
-        print("  - Email: tuananh@example.com")
-        print("    Password: Password123!")
-        print("    Role: PM (Project Manager) in QTDA001")
-        print("\n  - Email: hoangminh@example.com")
-        print("    Password: Password123!")
-        print("    Role: MEMBER in QTDA001, PM in WEBNEW")
-        print("\n  - Email: thule@example.com")
-        print("    Password: Password123!")
-        print("    Role: MEMBER in both projects")
-        print("="*60)
-
+        except Exception as e:
+            await db.rollback()
+            print(f"❌ Có lỗi xảy ra: {e}")
 
 if __name__ == "__main__":
-    print("\n🚀 Starting Database Seeding...\n")
-    asyncio.run(seed_database())
-    print("\n✨ Done! Seed data ready for testing.\n")
+    asyncio.run(run_seed())

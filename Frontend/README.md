@@ -37,7 +37,8 @@ npx tailwindcss init -p
 npm install react-router-dom axios
 # npm install clsx
 npm install lucide-react framer-motion
-npm install antd
+npm install antd @ant-design/icons
+npm install gantt-task-react --legacy-peer-deps
 ```
 
 ## Setup dự án

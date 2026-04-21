@@ -1,307 +1,217 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { Spin, Alert, Avatar, Tooltip, Tag, Typography, Button } from "antd";
+import { UserOutlined, ClockCircleOutlined, CheckCircleOutlined, LeftOutlined, RightOutlined, LockOutlined } from "@ant-design/icons";
+
 import { taskService } from "../services/taskService";
-import { getProjectIdByCode } from "../services/projectHelper";
+import { projectService } from "../services/projectService";
+import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../services/axiosConfig";
+import { showSuccess, showError } from "../utils/toast";
 
-// Card hiển thị task
-const KanbanCard = ({ task, onDelete, onEdit, onChangeStatus, currentStatus }) => {
-    const canMovePrev = currentStatus !== "TODO";
-    const canMoveNext = currentStatus !== "DONE";
+const { Text } = Typography;
 
-    const handlePrevStatus = () => {
-        const statusMap = { DOING: "TODO", DONE: "DOING" };
-        onChangeStatus(task.id, statusMap[currentStatus]);
-    };
+// ==========================================
+// 1. THẺ TASK (CÓ CHỨC NĂNG BÁO CÁO NHẬN DIỆN)
+// ==========================================
+const TaskCard = ({ task, currentUser, role, onMoveStatus }) => {
+    // ✅ Lấy ID bằng mọi cách (chống lỗi cấu trúc User bị lồng nhau)
+    const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.data?.id;
+    const taskOwnerId = task?.owner_id || task?.owner?.id;
 
-    const handleNextStatus = () => {
-        const statusMap = { TODO: "DOING", DOING: "DONE" };
-        onChangeStatus(task.id, statusMap[currentStatus]);
+    // Ép kiểu về String để so sánh an toàn tuyệt đối
+    const isOwner = currentUserId && taskOwnerId && String(taskOwnerId) === String(currentUserId);
+    
+    // Logic chốt: Có chủ thì chỉ chủ được bấm. Chưa chủ thì PM được bấm.
+    const canMove = taskOwnerId ? isOwner : role === 'PM';
+
+    // 🕵️ TOOLTIP ĐIỀU TRA LỖI (Giúp sếp biết hệ thống đang nghĩ sếp là ai)
+    const myName = currentUser?.full_name || currentUser?.name || currentUser?.username || "Ẩn danh (Lỗi useAuth)";
+    const ownerName = task?.owner?.full_name || "người khác";
+    const lockReason = taskOwnerId 
+        ? `Việc này của [${ownerName}]. Nhưng hệ thống nhận diện bạn đang đăng nhập là: [${myName}]!` 
+        : "Chỉ PM mới được nhận việc trống";
+
+    const renderStatusTag = () => {
+        if (task.status === 'DONE') return <Tag color="success" icon={<CheckCircleOutlined />}>Hoàn thành</Tag>;
+        if (task.status === 'DOING') return <Tag color="processing" icon={<ClockCircleOutlined spin />}>Đang làm</Tag>;
+        return <Tag color="default">Cần làm</Tag>;
     };
 
     return (
-        <div style={{ border: "1px solid #ddd", padding: "10px", marginBottom: "10px", borderRadius: "4px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                <strong>{task.name}</strong>
-                <div>
-                    <button onClick={() => onEdit(task)} style={{ marginRight: "5px", cursor: "pointer" }}>✏️</button>
-                    <button onClick={() => onDelete(task.id)} style={{ cursor: "pointer" }}>🗑️</button>
+        <div className={`bg-white p-4 rounded-lg shadow-sm border mb-3 relative group border-slate-200 transition-shadow ${canMove ? 'hover:shadow-md' : 'opacity-90 bg-slate-50/50'}`}>
+            <div className="flex justify-between items-start mb-2">
+                <Text strong className="text-slate-800 text-sm block truncate w-3/4" title={task.name}>{task.name}</Text>
+                {renderStatusTag()}
+            </div>
+            
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                    <Tooltip title={task.owner ? task.owner.full_name : "Chưa gán người"}>
+                        <Avatar size="small" icon={<UserOutlined />} className={task.owner ? "bg-blue-500" : "bg-slate-300"} />
+                    </Tooltip>
+                    <Text type="secondary" className="text-xs truncate w-24">
+                        {task.owner ? task.owner.full_name.split(' ').pop() : 'Chưa gán'}
+                    </Text>
                 </div>
-            </div>
-            <div style={{ fontSize: "13px", color: "#666", marginBottom: "8px" }}>
-                Người làm: {task.assignee || "Chưa gán"} | Thời gian: {task.duration}d | Ưu tiên: {task.priority}
-            </div>
-            <div style={{ display: "flex", gap: "5px" }}>
-                {canMovePrev && (
-                    <button onClick={handlePrevStatus} style={{ padding: "5px 10px", fontSize: "12px", cursor: "pointer" }}>← Lùi</button>
-                )}
-                {canMoveNext && (
-                    <button onClick={handleNextStatus} style={{ padding: "5px 10px", fontSize: "12px", cursor: "pointer", background: "#0066cc", color: "white", border: "none", borderRadius: "3px" }}>Tiến →</button>
-                )}
-            </div>
-        </div>
-    );
-};
-
-// Column hiển thị task theo status
-const KanbanColumn = ({ title, status, tasks, onDelete, onEdit, onAddTask, onChangeStatus }) => {
-    return (
-        <div style={{ flex: 1, minWidth: "250px", border: "1px solid #ddd", borderRadius: "4px", padding: "15px" }}>
-            <div style={{ marginBottom: "15px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", margin: "0 0 5px 0" }}>{title}</h3>
-                <p style={{ fontSize: "12px", color: "#666", margin: 0 }}>{tasks.length} công việc</p>
-            </div>
-
-            <div style={{ maxHeight: "500px", overflowY: "auto" }}>
-                {tasks.length > 0 ? (
-                    tasks.map((task) => (
-                        <KanbanCard
-                            key={task.id}
-                            task={task}
-                            onDelete={onDelete}
-                            onEdit={onEdit}
-                            onChangeStatus={onChangeStatus}
-                            currentStatus={status}
-                        />
-                    ))
-                ) : (
-                    <div style={{ padding: "20px", textAlign: "center", color: "#999", fontSize: "12px" }}>Chưa có công việc</div>
+                
+                {/* 🔒 Ổ KHÓA SẼ HIỂN THỊ NGUYÊN NHÂN CHẶN CỤ THỂ NẾU DÍ CHUỘT VÀO */}
+                {!canMove && (
+                    <Tooltip title={lockReason} color="red" overlayInnerStyle={{ fontWeight: "bold" }}>
+                        <LockOutlined className="text-red-400 text-lg cursor-help" />
+                    </Tooltip>
                 )}
             </div>
 
-            <button
-                onClick={() => onAddTask(status)}
-                style={{ width: "100%", marginTop: "10px", padding: "8px", border: "1px dashed #ddd", borderRadius: "4px", background: "#f9f9f9", cursor: "pointer", fontSize: "12px" }}
-            >
-                + Thêm công việc
-            </button>
-        </div>
-    );
-};
-
-const KanbanBoard = () => {
-    const { projectCode } = useParams();
-    const [tasks, setTasks] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [selectedTask, setSelectedTask] = useState(null);
-    const [showModal, setShowModal] = useState(false);
-
-    useEffect(() => {
-        const fetchTasks = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const projectId = await getProjectIdByCode(projectCode);
-                const response = await taskService.getTasks(projectId);
-                setTasks(response.tasks || response);
-            } catch (err) {
-                setError(err?.response?.data?.detail || err.message || "Lỗi khi tải dữ liệu");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (projectCode) {
-            fetchTasks();
-        }
-    }, [projectCode]);
-
-    const todoTasks = tasks.filter(t => t.status === "TODO" && !t.parent_id);
-    const doingTasks = tasks.filter(t => t.status === "DOING" && !t.parent_id);
-    const doneTasks = tasks.filter(t => t.status === "DONE" && !t.parent_id);
-
-    if (loading) return <div style={{ padding: "20px" }}>Đang tải...</div>;
-    if (error) return <div style={{ padding: "20px", color: "red" }}>Lỗi: {error}</div>;
-
-    const handleDeleteTask = (taskId) => {
-        if (confirm("Bạn chắc chắn muốn xóa?")) {
-            setTasks(tasks.filter(t => t.id !== taskId));
-        }
-    };
-
-    const handleEditTask = (task) => {
-        setSelectedTask(task);
-        setShowModal(true);
-    };
-
-    const handleAddTask = (status) => {
-        setSelectedTask({ status, id: null });
-        setShowModal(true);
-    };
-
-    const handleChangeStatus = (taskId, newStatus) => {
-        setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-    };
-
-    const handleSaveTask = (taskData) => {
-        if (selectedTask?.id) {
-            setTasks(tasks.map(t => t.id === selectedTask.id ? { ...t, ...taskData } : t));
-        } else {
-            const newTask = { id: `T${Date.now()}`, ...taskData, parent_id: null };
-            setTasks([...tasks, newTask]);
-        }
-        setShowModal(false);
-        setSelectedTask(null);
-    };
-
-    return (
-        <div style={{ padding: "20px" }}>
-            <h2>Bảng Kanban</h2>
-            <p>Dự án: {projectCode}</p>
-
-            <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
-                <KanbanColumn
-                    title="TO DO"
-                    status="TODO"
-                    tasks={todoTasks}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onAddTask={handleAddTask}
-                    onChangeStatus={handleChangeStatus}
-                />
-
-                <KanbanColumn
-                    title="DOING"
-                    status="DOING"
-                    tasks={doingTasks}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onAddTask={handleAddTask}
-                    onChangeStatus={handleChangeStatus}
-                />
-
-                <KanbanColumn
-                    title="DONE"
-                    status="DONE"
-                    tasks={doneTasks}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onAddTask={handleAddTask}
-                    onChangeStatus={handleChangeStatus}
-                />
-            </div>
-
-            {showModal && (
-                <TaskModal
-                    task={selectedTask}
-                    onSave={handleSaveTask}
-                    onClose={() => {
-                        setShowModal(false);
-                        setSelectedTask(null);
-                    }}
-                />
+            {/* NÚT BẤM CHỈ HIỆN KHI CÓ QUYỀN */}
+            {canMove && (
+                <div className="flex justify-between mt-4 pt-2">
+                    <Button size="small" icon={<LeftOutlined />} disabled={task.status === 'TODO'} onClick={() => onMoveStatus(task, 'prev')}>
+                        Lùi
+                    </Button>
+                    <Button size="small" type="primary" className="bg-blue-600" disabled={task.status === 'DONE'} onClick={() => onMoveStatus(task, 'next')}>
+                        Tiến <RightOutlined />
+                    </Button>
+                </div>
             )}
         </div>
     );
 };
 
-// Modal Component
-const TaskModal = ({ task, onSave, onClose }) => {
-    const [formData, setFormData] = useState(
-        task || {
-            name: "",
-            assignee: "",
-            priority: "Medium",
-            duration: 1
-        }
-    );
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!formData.name.trim()) {
-            alert("Vui lòng nhập tên công việc!");
-            return;
-        }
-        onSave(formData);
-    };
-
+// ==========================================
+// 2. CỘT KANBAN 
+// ==========================================
+const KanbanColumn = ({ title, tasks, colorClass, currentUser, role, onMoveStatus }) => {
     return (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "20px" }}>
-            <div style={{ background: "white", borderRadius: "8px", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
-                <div style={{ padding: "20px", borderBottom: "1px solid #ddd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>
-                        {task?.id ? "Chỉnh sửa" : "Thêm"} Công Việc
-                    </h3>
-                    <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>✕</button>
-                </div>
-
-                <form onSubmit={handleSubmit} style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
-                    <div>
-                        <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "5px" }}>Tên Công Việc *</label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            placeholder="Nhập tên công việc..."
-                            style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box" }}
-                        />
-                    </div>
-
-                    <div>
-                        <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "5px" }}>Người phụ trách</label>
-                        <input
-                            type="text"
-                            name="assignee"
-                            value={formData.assignee}
-                            onChange={handleChange}
-                            placeholder="Nhập tên người..."
-                            style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box" }}
-                        />
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                        <div>
-                            <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "5px" }}>Ưu Tiên</label>
-                            <select
-                                name="priority"
-                                value={formData.priority}
-                                onChange={handleChange}
-                                style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box" }}
-                            >
-                                <option value="Low">Thấp</option>
-                                <option value="Medium">Trung bình</option>
-                                <option value="High">Cao</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "5px" }}>Thời Lượng (ngày)</label>
-                            <input
-                                type="number"
-                                name="duration"
-                                value={formData.duration}
-                                onChange={handleChange}
-                                min="1"
-                                style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box" }}
-                            />
-                        </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: "4px", background: "#fff", cursor: "pointer" }}
-                        >
-                            Hủy
-                        </button>
-                        <button
-                            type="submit"
-                            style={{ flex: 1, padding: "10px", background: "#0066cc", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
-                        >
-                            Lưu
-                        </button>
-                    </div>
-                </form>
+        <div className="flex-1 min-w-[300px] max-w-[350px] bg-slate-100/50 rounded-xl p-4 flex flex-col h-full border border-slate-200">
+            <div className={`mb-4 pb-2 border-b-2 ${colorClass} flex justify-between items-center`}>
+                <h3 className="font-bold text-slate-700 m-0 uppercase tracking-wide text-sm">{title}</h3>
+                <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">{tasks.length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-1 pb-2 custom-scrollbar min-h-[50vh]">
+                {tasks.map(task => (
+                    <TaskCard key={task.id} task={task} currentUser={currentUser} role={role} onMoveStatus={onMoveStatus} />
+                ))}
+                {tasks.length === 0 && (
+                    <div className="py-8 text-center text-slate-400 text-sm italic border-2 border-dashed border-slate-200 rounded-lg">Không có công việc nào</div>
+                )}
             </div>
         </div>
     );
 };
 
-export default KanbanBoard;
+// ==========================================
+// 3. MAIN BOARD
+// ==========================================
+export const Kanban = () => {
+    const { projectCode } = useParams();
+    
+    // ✅ TRÍCH XUẤT USER MỌI NƠI ĐỂ CỨU CÁNH useAuth()
+    const authContext = useAuth() || {};
+    const contextUser = authContext.user || authContext.userInfo || authContext.currentUser;
+    const [localUser, setLocalUser] = useState(null);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) setLocalUser(JSON.parse(stored));
+        } catch (e) {}
+    }, []);
+
+    // Lấy user từ Context, nếu rỗng thì moi từ LocalStorage ra
+    const activeUser = contextUser || localUser;
+
+    const [tasksByStatus, setTasksByStatus] = useState({ TODO: [], DOING: [], DONE: [] });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [role, setRole] = useState(null);
+
+    const fetchKanbanData = async () => {
+        try {
+            setLoading(true);
+            const projectRes = await projectService.joinProject(projectCode);
+            const pId = projectRes.id;
+
+            const roleRes = await axiosInstance.get(`/projects/${pId}/my-role`);
+            setRole(roleRes.data.role);
+
+            const kanbanRes = await taskService.getTasksByStatus(pId);
+            
+            const isNotParent = (task, allTasks) => !allTasks.some(t => t.parent_id === task.id);
+            const allTasks = [...(kanbanRes.todo || []), ...(kanbanRes.doing || []), ...(kanbanRes.done || [])];
+
+            setTasksByStatus({
+                TODO: (kanbanRes.todo || []).filter(t => isNotParent(t, allTasks)),
+                DOING: (kanbanRes.doing || []).filter(t => isNotParent(t, allTasks)),
+                DONE: (kanbanRes.done || []).filter(t => isNotParent(t, allTasks)),
+            });
+        } catch (err) {
+            setError("Lỗi tải bảng Kanban");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { if (projectCode) fetchKanbanData(); }, [projectCode]);
+
+    const handleMoveStatus = async (task, direction) => {
+        let newStatus = '';
+        if (direction === 'next') {
+            newStatus = task.status === 'TODO' ? 'DOING' : 'DONE';
+        } else {
+            newStatus = task.status === 'DONE' ? 'DOING' : 'TODO';
+        }
+
+        const sourceTasks = tasksByStatus[task.status].filter(t => t.id !== task.id);
+        const destTasks = [...tasksByStatus[newStatus], { ...task, status: newStatus }]
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        setTasksByStatus(prev => ({
+            ...prev,
+            [task.status]: sourceTasks,
+            [newStatus]: destTasks
+        }));
+
+        try {
+            await taskService.updateTask(task.id, { status: newStatus });
+            showSuccess(`Đã chuyển sang ${newStatus}`);
+        } catch (error) {
+            showError(error?.response?.data?.detail || "Không có quyền chuyển việc này!");
+            fetchKanbanData(); 
+        }
+    };
+
+    if (loading) return <div className="flex justify-center items-center h-[70vh]"><Spin size="large" /></div>;
+    if (error) return <Alert message="Lỗi" description={error} type="error" showIcon className="m-4" />;
+
+    return (
+        <div className="p-6 bg-white min-h-[80vh] rounded-lg shadow-sm m-4 overflow-hidden">
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 m-0">Bảng Kanban</h2>
+                    <p className="text-slate-500 mt-1">Dự án: <Tag color="blue">{projectCode}</Tag> | Quyền: <Tag color={role === 'PM' ? 'gold' : 'cyan'}>{role}</Tag></p>
+                </div>
+                <div className="text-sm text-slate-500 italic bg-slate-50 px-3 py-1 rounded">
+                    💡 Việc của ai, người nấy chuyển!
+                </div>
+            </div>
+
+            <div className="overflow-x-auto pb-4">
+                <div className="flex gap-6 items-stretch h-[60vh] min-w-[950px] justify-center">
+                    {/* QUAN TRỌNG: Đã truyền activeUser vào các cột */}
+                    <KanbanColumn title="📌 Cần làm (TODO)" tasks={tasksByStatus.TODO} colorClass="border-slate-400" currentUser={activeUser} role={role} onMoveStatus={handleMoveStatus} />
+                    <KanbanColumn title="⏳ Đang làm (DOING)" tasks={tasksByStatus.DOING} colorClass="border-blue-500" currentUser={activeUser} role={role} onMoveStatus={handleMoveStatus} />
+                    <KanbanColumn title="✅ Hoàn thành (DONE)" tasks={tasksByStatus.DONE} colorClass="border-emerald-500" currentUser={activeUser} role={role} onMoveStatus={handleMoveStatus} />
+                </div>
+            </div>
+            
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+            `}</style>
+        </div>
+    );
+};
+
+export default Kanban;
