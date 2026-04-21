@@ -5,55 +5,26 @@ Dùng để lấy thông tin user từ JWT token, validate quyền truy cập, v
 
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, oauth_scheme 
 from app.crud.crud_user import get_user_by_id
 from app.models.model import User
 
-# Scheme bảo mật HTTP Bearer (để Swagger docs hiển thị)
-security = HTTPBearer()
-
-
 async def get_db() -> AsyncSession:
-    """
-    Dependency cung cấp session database.
-    Dùng để thực hiện các thao tác database.
-    
-    Yields:
-        AsyncSession: Session database async
-    """
     async with AsyncSessionLocal() as session:
         yield session
 
-
+# 2. Sửa lại hàm get_current_user:
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    token: str = Depends(oauth_scheme), # Đổi chỗ này! OAuth2 trả thẳng về token (kiểu string)
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Lấy thông tin user hiện tại từ JWT token.
-    Đây là dependency cho protected routes - sẽ raise 401 nếu token không hợp lệ.
-    
-    Args:
-        credentials: HTTPAuthCredentials từ header Authorization (Bearer token)
-        db: Session database
-        
-    Returns:
-        User: Object user từ database
-        
-    Raises:
-        HTTPException: 401 nếu token không hợp lệ/bị mất/hết hạn
-        HTTPException: 404 nếu user không tìm thấy trong database
-        
-    Ví dụ:
-        @router.get("/users/me")
-        async def get_me(current_user: User = Depends(get_current_user)):
-            return current_user
     """
-    token = credentials.credentials
+    # XÓA dòng: token = credentials.credentials đi, vì biến token ở trên đã là string rồi.
     
     # Giải mã JWT token
     payload = decode_access_token(token)
@@ -66,7 +37,7 @@ async def get_current_user(
         )
     
     # Lấy user_id từ token payload
-    user_id_str = payload.get("sub")
+    user_id_str = payload.get("data") # Sếp thấy trong auth.py em lưu id ở key "data"
     
     if not user_id_str:
         raise HTTPException(

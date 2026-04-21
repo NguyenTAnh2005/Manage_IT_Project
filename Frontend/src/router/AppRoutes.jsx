@@ -2,12 +2,16 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import DashBoardLayout from '../components/layout/DashBoardLayout';
 
-// Giả lập import các Layout và Page
-// import AuthLayout from '../layouts/AuthLayout';
-// import DashboardLayout from '../layouts/DashboardLayout';
+// Import các pages
 import Login from '../page/Login';
+import Register from '../page/Register';
 import JoinProject from '../page/JoinProject';
-import WbsDashBoard from '../page/WBS'
+import CreateProject from '../page/CreateProject';
+import WbsDashBoard from '../page/WBS';
+import KanbanBoard from '../page/Kanban';
+import GanttChart from '../page/Gantt';
+import CostManagement from '../page/Cost';
+import PERTCalculation from '../page/PERT';
 
 export const AppRoutes = () => {
     return (
@@ -17,35 +21,37 @@ export const AppRoutes = () => {
                 {/* 1. KHU VỰC PUBLIC (AuthLayout: Không có menu)      */}
                 {/* ================================================== */}
                 <Route path="/login" element={<Login/>} />
+                <Route path="/register" element={<Register/>} />
 
                 {/* ================================================== */}
                 {/* 2. KHU VỰC PRIVATE (Phải đi qua Lính gác ProtectedRoute) */}
                 {/* ================================================== */}
                 <Route element={<ProtectedRoute />}>
                     
-                    {/* Vượt qua Login thì được vào trang Nhập mã */}
+                    {/* Trang chọn/tạo dự án */}
                     <Route path="/join-project" element={<JoinProject/>} />
+                    <Route path="/create-project" element={<CreateProject/>} />
 
-                    {/* Vượt qua Nhập mã thì được vào Dashboard Layout */}
-                    {/* Chú ý: Có chữ :projectCode để bắt cái mã HABIT_01 từ URL */}
+                    {/* Dashboard Layout với các sub-routes */}
                     <Route path="/dashboard/:projectCode" element={<DashBoardLayout/>}>
                         
-                        {/* Đây là các trang con nhét vào giữa Dashboard Layout (Outlet) */}
+                        {/* Các trang con nhét vào giữa Dashboard Layout (Outlet) */}
                         <Route path="wbs" element={<WbsDashBoard/>} />
-                        <Route path="kanban" element={<div>Bảng Kanban</div>} />
-                        <Route path="gantt" element={<div>Biểu đồ Gantt</div>} />
-                        <Route path="cost" element={<div>Bảng Chi Phí</div>} />
+                        <Route path="kanban" element={<KanbanBoard/>} />
+                        <Route path="gantt" element={<GanttChart/>} />
+                        <Route path="cost" element={<CostManagement/>} />
+                        <Route path="pert" element={<PERTCalculation/>} />
                         
-
+                        {/* Route mặc định cho dashboard */}
+                        <Route index element={<Navigate to="wbs" replace />} />
                     </Route>
-                    {/* Nếu user chỉ gõ /dashboard/HABIT_01 -> Tự động đá sang wbs */}
-                    <Route index element={<Navigate to="/dashboard/:projectCode/wbs" replace />} />
                 </Route>
 
                 {/* ================================================== */}
                 {/* LỖI 404: Gõ bậy bạ tự động đá về Login             */}
                 {/* ================================================== */}
-                <Route path="*" element={<h1>Lỗi 404: Đường dẫn không tồn tại!</h1>} />
+                <Route path="/" element={<Navigate to="/join-project" replace />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         </BrowserRouter>
     );

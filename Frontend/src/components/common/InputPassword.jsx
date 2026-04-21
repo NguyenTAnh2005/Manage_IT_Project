@@ -1,47 +1,66 @@
 import { useState } from "react";
-import { Eye, EyeOff, Lock } from "lucide-react";
 
-const InputPassword = ({label, placehoder, value, onChange}) =>{
+export const InputPassword = ({ label, placeholder, value, onChange }) => {
     const [hidePass, setHidePass] = useState(true);
-    const changeModeType = () =>{
+
+    const togglePasswordVisibility = () => {
         setHidePass(prev => !prev);
     };
 
     return (
-        <div className="flex flex-col w-full">
-            <span className="capitalize font-semibold">
+        <div style={{ display: "flex", flexDirection: "column", width: "100%", marginBottom: "15px" }}>
+            <label style={{
+                marginBottom: "5px",
+                fontWeight: "600",
+                fontSize: "14px",
+                color: "#333",
+                textTransform: "capitalize"
+            }}>
                 {label}
-            </span>
-            <div className="flex relative">
-                <input 
+            </label>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <input
                     required
-                    placeholder={placehoder}
+                    placeholder={placeholder}
                     onChange={onChange}
                     value={value}
-                    className="indent-10 w-full py-2 focus:outline-none border border-light-muted rounded-md "
-                    type={hidePass? "password" : "text"}
+                    style={{
+                        width: "100%",
+                        padding: "10px 40px 10px 40px",
+                        border: "1px solid #ddd",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        outline: "none",
+                        boxSizing: "border-box"
+                    }}
+                    type={hidePass ? "password" : "text"}
                 />
-                <>
-                    <Lock className="text-2xl absolute top-[25%] left-[1%] text-dark-bg"/>
-                </>
-                <div 
-                    onClick={changeModeType} 
-                    className="flex justify-center items-center absolute right-0 h-full px-2">
-                    {hidePass
-                        ?(
-                            <>
-                                <EyeOff className="text-2xl text-dark-bg"/>
-                            </>
-                        )
-                        :(
-                            <>
-                                <Eye className="text-2xl text-dark-bg"/>
-                            </>
-                        )}
-                </div>
+                <span style={{
+                    position: "absolute",
+                    left: "10px",
+                    fontSize: "16px",
+                    color: "#666"
+                }}>
+                    🔒
+                </span>
+                <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    style={{
+                        position: "absolute",
+                        right: "10px",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "18px",
+                        padding: "0"
+                    }}
+                >
+                    {hidePass ? "👁️" : "👁️‍🗨️"}
+                </button>
             </div>
-            
         </div>
-    )
-}
+    );
+};
+
 export default InputPassword;

@@ -205,6 +205,64 @@ async def get_project_detail(
     )
 
 
+@router.get("/{project_id}/my-role", status_code=status.HTTP_200_OK)
+async def get_my_role_in_project(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Lấy chức vụ (role) của user hiện tại trong project.
+    
+    **Cần authentication:** Đúng (Bearer token)
+    
+    Args:
+        project_id: ID project
+    
+    Returns:
+        {
+            "role": "PM" | "MEMBER"
+        }
+        
+    Raises:
+        403: User không phải member của project
+        404: Project không tồn tại
+        
+    Ví dụ response:
+        {
+            "role": "PM"
+        }
+    """
+    # Kiểm tra project tồn tại
+    project = await get_project_by_id(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project không tồn tại",
+        )
+    
+    # Lấy membership của user
+    member_stmt = (
+        select(ProjectMember)
+        .where(
+            (ProjectMember.project_id == project_id)
+            & (ProjectMember.user_id == current_user.id)
+        )
+    )
+    member_result = await db.execute(member_stmt)
+    member = member_result.scalar_one_or_none()
+    
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không phải member của project này",
+        )
+    
+    return {
+        "role": member.role.value if hasattr(member.role, 'value') else str(member.role)
+    }
+
+
 @router.put("/{project_id}", response_model=ProjectResponse)
 async def update_project_info(
     project_id: int,
