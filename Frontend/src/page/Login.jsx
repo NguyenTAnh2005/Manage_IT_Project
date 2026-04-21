@@ -1,16 +1,15 @@
+// Frontend/src/page/Login.jsx
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { authService } from "../services/authService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Input from "../components/common/Input";
 import InputPassword from "../components/common/InputPassword";
+import { Mail } from "lucide-react";
 
 const Login = () => {
-    const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [fullName, setFullName] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -31,6 +30,7 @@ const Login = () => {
         try {
             const res = await authService.login(email, password);
             logIn(res.access_token);
+            // Có thể lấy thông tin user ở đây nếu dùng context
             navigate("/join-project");
         } catch (err) {
             setError(err?.response?.data?.detail || "Đăng nhập thất bại!");
@@ -39,181 +39,63 @@ const Login = () => {
         }
     };
 
-    const handleRegister = async (e) => {
-        e.preventDefault();
-        setError("");
-
-        if (password !== confirmPassword) {
-            setError("Mật khẩu không trùng khớp!");
-            return;
-        }
-
-        if (password.length < 6) {
-            setError("Mật khẩu phải có ít nhất 6 ký tự!");
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            await authService.register(email, password, fullName);
-            setError("");
-            setEmail("");
-            setPassword("");
-            setConfirmPassword("");
-            setFullName("");
-            setIsLogin(true);
-            alert("Đăng ký thành công! Vui lòng đăng nhập.");
-        } catch (err) {
-            setError(err?.response?.data?.detail || "Đăng ký thất bại!");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     return (
-        <div style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-            background: "#f5f5f5",
-            padding: "20px"
-        }}>
-            <div style={{
-                background: "white",
-                padding: "40px",
-                borderRadius: "8px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                width: "100%",
-                maxWidth: "400px"
-            }}>
-                <h1 style={{
-                    textAlign: "center",
-                    fontSize: "28px",
-                    fontWeight: "bold",
-                    marginBottom: "10px",
-                    color: "#333"
-                }}>
-                    {isLogin ? "👋 Đăng Nhập" : "📝 Đăng Ký"}
+        <div className="flex flex-col relative items-center min-h-screen justify-center text-light-text bg-light-bg dark:bg-dark-bg dark:text-dark-text">
+            <form
+                onSubmit={handleLogin}
+                className="flex gap-4 p-8 flex-col w-full max-w-md items-center outline-none rounded-xl shadow-2xl dark:shadow-gray-400 bg-white dark:bg-slate-800"
+            >
+                <h1 className="font-bold text-3xl text-center text-primary mb-2">
+                    👋 Đăng Nhập
                 </h1>
-
-                <p style={{
-                    textAlign: "center",
-                    color: "#666",
-                    marginBottom: "30px",
-                    fontSize: "14px"
-                }}>
-                    {isLogin ? "Đăng nhập để quản lý dự án của bạn" : "Tạo tài khoản mới để bắt đầu"}
+                <p className="text-base text-center text-slate-500 mb-4">
+                    Đăng nhập để quản lý dự án của bạn
                 </p>
 
                 {error && (
-                    <div style={{
-                        background: "#ffe6e6",
-                        border: "1px solid #ff6666",
-                        color: "#cc0000",
-                        padding: "12px",
-                        borderRadius: "4px",
-                        marginBottom: "20px",
-                        fontSize: "13px"
-                    }}>
+                    <span className="bg-red-50 border border-red-200 text-red-600 w-full text-sm italic px-3 py-2 rounded-md">
                         ⚠️ {error}
-                    </div>
+                    </span>
                 )}
 
-                <form onSubmit={isLogin ? handleLogin : handleRegister} style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-                    {!isLogin && (
-                        <Input
-                            label="Họ và Tên"
-                            placeholder="Nhập họ và tên"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            isRequired={true}
-                            icon="👤"
-                        />
-                    )}
+                <Input
+                    label="Email"
+                    type="email"
+                    placeholder="abc@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    isRequired={true}
+                    icon={<Mail size={18} className="text-slate-400" />}
+                />
 
-                    <Input
-                        label="Email"
-                        type="email"
-                        placeholder="abc@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        isRequired={true}
-                        icon="📧"
-                    />
+                <InputPassword
+                    label="Mật khẩu"
+                    placeholder="Nhập mật khẩu"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    isRequired={true}
+                />
 
-                    <InputPassword
-                        label="Mật khẩu"
-                        placeholder="Nhập mật khẩu"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className={`w-full mt-4 btn-primary py-3 ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                    {loading ? "Đang xử lý..." : "Đăng Nhập"}
+                </button>
 
-                    {!isLogin && (
-                        <InputPassword
-                            label="Xác nhận mật khẩu"
-                            placeholder="Nhập lại mật khẩu"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                        />
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        style={{
-                            width: "100%",
-                            padding: "12px",
-                            background: loading ? "#ccc" : "#0066cc",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            fontSize: "16px",
-                            fontWeight: "bold",
-                            cursor: loading ? "not-allowed" : "pointer",
-                            marginTop: "10px"
-                        }}
-                    >
-                        {loading ? "Đang xử lý..." : (isLogin ? "Đăng Nhập" : "Đăng Ký")}
-                    </button>
-                </form>
-
-                <div style={{
-                    textAlign: "center",
-                    marginTop: "20px",
-                    paddingTop: "20px",
-                    borderTop: "1px solid #eee"
-                }}>
-                    <p style={{ color: "#666", fontSize: "14px", marginBottom: "10px" }}>
-                        {isLogin ? "Chưa có tài khoản?" : "Đã có tài khoản?"}
+                <div className="w-full border-t border-slate-200 dark:border-slate-700 mt-6 pt-4 text-center">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                        Chưa có tài khoản?
                     </p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIsLogin(!isLogin);
-                            setError("");
-                            setEmail("");
-                            setPassword("");
-                            setConfirmPassword("");
-                            setFullName("");
-                        }}
-                        style={{
-                            background: "white",
-                            color: "#0066cc",
-                            border: "1px solid #0066cc",
-                            padding: "10px 20px",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "bold"
-                        }}
+                    <Link
+                        to="/register"
+                        className="inline-block w-full py-2 border border-primary text-primary font-bold rounded-md hover:bg-primary hover:text-white transition-colors duration-300"
                     >
-                        {isLogin ? "Đăng Ký Ngay" : "Quay Lại Đăng Nhập"}
-                    </button>
+                        Đăng Ký Ngay
+                    </Link>
                 </div>
-            </div>
+            </form>
         </div>
     );
 };

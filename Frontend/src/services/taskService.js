@@ -31,13 +31,13 @@ export const taskService = {
         return res.data;
     },
 
-    // Lấy danh sách công việc theo status (cho Kanban)
-    getTasksByStatus: async (projectId, status) => {
-        const res = await axiosInstance.get(`/projects/${projectId}/tasks?status=${status}`);
+    // ✅ ĐÃ SỬA: Lấy dữ liệu cho bảng Kanban (Trả về 1 cục 3 cột)
+    getTasksByStatus: async (projectId) => {
+        const res = await axiosInstance.get(`/projects/${projectId}/tasks/kanban`);
         return res.data;
     },
 
-    // Lấy công việc trong khoảng thời gian (cho Gantt)
+    // Lấy công việc trong khoảng thời gian (cho Gantt sau này)
     getTasksByDateRange: async (projectId, startDate, endDate) => {
         const res = await axiosInstance.get(`/projects/${projectId}/tasks?start_date=${startDate}&end_date=${endDate}`);
         return res.data;

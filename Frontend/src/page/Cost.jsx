@@ -1,193 +1,229 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { Table, Button, Spin, Alert, Form, InputNumber, Space, Tooltip, Card, Statistic, Tag, Typography } from "antd";
+import { EditOutlined, CheckOutlined, CloseOutlined, DollarOutlined } from "@ant-design/icons";
 import { taskService } from "../services/taskService";
-import { getProjectIdByCode } from "../services/projectHelper";
+import { projectService } from "../services/projectService";
+import { showSuccess, showError } from "../utils/toast";
+import axiosInstance from "../services/axiosConfig";
 
-// Row hiển thị chi phí
-const CostRow = ({ task, allTasks, level = 0, onUpdate }) => {
-    const childTasks = allTasks.filter(t => t.parent_id === task.id || t.parentId === task.id);
-    const hasChildren = childTasks.length > 0;
-    const [isExpanded, setIsExpanded] = useState(true);
+const { Text } = Typography;
 
-    const childrenCost = childTasks.reduce((sum, child) => sum + (child.cost_total || 0), 0);
-    const totalCost = (task.cost_total || 0) + childrenCost;
-
-    return (
-        <>
-            <div style={{ marginLeft: `${level * 20}px`, padding: "10px", borderBottom: "1px solid #ddd" }}>
-                <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
-                    {hasChildren && (
-                        <button 
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            style={{ cursor: "pointer", background: "none", border: "none", fontSize: "12px" }}
-                        >
-                            {isExpanded ? "▼" : "▶"}
-                        </button>
-                    )}
-                    <strong>{task.name}</strong>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "80px 150px 150px 150px", gap: "10px", fontSize: "13px" }}>
-                    <div>
-                        <label style={{ fontSize: "11px", color: "#666" }}>Thời gian</label>
-                        <div>{task.duration} ngày</div>
-                    </div>
-                    <div>
-                        <label style={{ fontSize: "11px", color: "#666" }}>Chi phí/ngày (₫)</label>
-                        <input
-                            type="number"
-                            defaultValue={task.cost_total || 0}
-                            onChange={(e) => onUpdate(task.id, parseFloat(e.target.value) || 0)}
-                            style={{ width: "100%", padding: "4px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }}
-                        />
-                    </div>
-                    <div>
-                        <label style={{ fontSize: "11px", color: "#666" }}>Tổng chi phí (₫)</label>
-                        <div style={{ fontWeight: "bold", color: "#009900" }}>{totalCost.toLocaleString('vi-VN')} ₫</div>
-                    </div>
-                    <div>
-                        <label style={{ fontSize: "11px", color: "#666" }}>Ngày x Chi phí</label>
-                        <div style={{ fontWeight: "bold" }}>{(task.duration * (task.cost_total || 0)).toLocaleString('vi-VN')} ₫</div>
-                    </div>
-                </div>
-            </div>
-
-            {isExpanded && hasChildren && (
-                childTasks.map(child => (
-                    <CostRow
-                        key={child.id}
-                        task={child}
-                        allTasks={allTasks}
-                        level={level + 1}
-                        onUpdate={onUpdate}
-                    />
-                ))
-            )}
-        </>
-    );
+const buildTree = (tasks, parentId = null) => {
+    return tasks
+        .filter((task) => task.parent_id === parentId)
+        .map((task) => ({
+            ...task,
+            key: task.id,
+            children: buildTree(tasks, task.id).length > 0 ? buildTree(tasks, task.id) : null,
+        }));
 };
 
-const CostManagement = () => {
+export const Cost = () => {
     const { projectCode } = useParams();
+    const [form] = Form.useForm();
+    
     const [tasks, setTasks] = useState([]);
+    const [projectId, setProjectId] = useState(null);
+    const [role, setRole] = useState(null); 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [editingKey, setEditingKey] = useState('');
+    const [expandedRowKeys, setExpandedRowKeys] = useState([]);
+
+    // ==========================================
+    // FETCH DATA
+    // ==========================================
+    const fetchData = async () => {
+        try {
+            if (!projectId) setLoading(true);
+            const projectRes = await projectService.joinProject(projectCode);
+            const pId = projectRes.id;
+            setProjectId(pId);
+
+            const roleRes = await axiosInstance.get(`/projects/${pId}/my-role`);
+            setRole(roleRes.data.role);
+
+            const tasksRes = await taskService.getTasks(pId);
+            setTasks(tasksRes.tasks || []);
+        } catch (err) {
+            setError(err?.response?.data?.detail || "Lỗi khi tải dữ liệu chi phí");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchTasks = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const projectId = await getProjectIdByCode(projectCode);
-                const response = await taskService.getTasks(projectId);
-                setTasks(response.tasks || response);
-            } catch (err) {
-                setError(err?.response?.data?.detail || err.message || "Lỗi khi tải dữ liệu");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (projectCode) {
-            fetchTasks();
-        }
+        if (projectCode) fetchData();
     }, [projectCode]);
 
-    const rootTasks = tasks.filter(t => !t.parent_id && !t.parentId);
+    const treeData = useMemo(() => buildTree(tasks), [tasks]);
 
-    const totalProjectCost = tasks.reduce((sum, task) => sum + (task.cost_total || 0), 0);
-    const estimatedCostByDuration = tasks.reduce((sum, task) => sum + (task.duration * (task.cost_total || 0)), 0);
+    useEffect(() => {
+        if (tasks.length > 0) {
+            const parentIds = tasks.filter(t => tasks.some(child => child.parent_id === t.id)).map(t => t.id);
+            setExpandedRowKeys(parentIds);
+        }
+    }, [tasks]);
 
-    const costByStatus = {
-        TODO: tasks.filter(t => t.status === "TODO").reduce((sum, t) => sum + (t.cost_total || 0), 0),
-        DOING: tasks.filter(t => t.status === "DOING").reduce((sum, t) => sum + (t.cost_total || 0), 0),
-        DONE: tasks.filter(t => t.status === "DONE").reduce((sum, t) => sum + (t.cost_total || 0), 0),
+    // ✅ TỔNG CHI PHÍ DỰ ÁN (Cộng dồn từ các Task Gốc)
+    const totalProjectCost = useMemo(() => {
+        const rootTasks = tasks.filter(t => t.parent_id === null);
+        return rootTasks.reduce((sum, t) => sum + (parseFloat(t.cost_total) || 0), 0);
+    }, [tasks]);
+
+    // ==========================================
+    // KIỂM TRA QUYỀN & EDIT INLINE
+    // ==========================================
+    const checkPermission = () => {
+        if (role !== "PM") {
+            showError("Chỉ Trưởng dự án (PM) mới có quyền chỉnh sửa chi phí!");
+            return false;
+        }
+        return true;
     };
 
-    const costByPriority = {
-        High: tasks.filter(t => t.priority === "High").reduce((sum, t) => sum + (t.cost_total || 0), 0),
-        Medium: tasks.filter(t => t.priority === "Medium").reduce((sum, t) => sum + (t.cost_total || 0), 0),
-        Low: tasks.filter(t => t.priority === "Low").reduce((sum, t) => sum + (t.cost_total || 0), 0),
+    const isEditing = (record) => record.id === editingKey;
+
+    const edit = (record) => {
+        if (!checkPermission()) return;
+        form.setFieldsValue({ cost_total: record.cost_total || 0 });
+        setEditingKey(record.id);
     };
 
-    const handleUpdateCost = (taskId, newCost) => {
-        setTasks(tasks.map(t => t.id === taskId ? { ...t, cost_total: newCost } : t));
+    const save = async (id) => {
+        try {
+            const row = await form.validateFields();
+            await taskService.updateTask(id, { cost_total: row.cost_total });
+            
+            showSuccess("Đã cập nhật chi phí!");
+            setEditingKey('');
+            fetchData(); 
+        } catch (errInfo) {
+            if (errInfo?.response) showError(errInfo.response.data.detail);
+        }
     };
 
-    if (loading) return <div style={{ padding: "20px" }}>Đang tải...</div>;
-    if (error) return <div style={{ padding: "20px", color: "red" }}>Lỗi: {error}</div>;
+    const columns = [
+        {
+            title: "Tên công việc",
+            dataIndex: "name",
+            key: "name",
+            width: "50%",
+            render: (text, record) => {
+                const isParent = (record.children && record.children.length > 0) || record.parent_id === null;
+                return <span className={isParent ? "font-bold text-blue-800" : "text-slate-700"}>{text}</span>;
+            },
+        },
+        {
+            title: "Chi phí (VNĐ)",
+            dataIndex: "cost_total",
+            width: "30%",
+            align: "right",
+            render: (_, record) => {
+                if (isEditing(record)) {
+                    return (
+                        <Form.Item name="cost_total" style={{ margin: 0 }} rules={[{ required: true, message: 'Nhập số tiền' }]}>
+                            <InputNumber 
+                                min={0} 
+                                step={100000} 
+                                className="w-full" 
+                                autoFocus
+                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                            />
+                        </Form.Item>
+                    );
+                }
+                const isParent = tasks.some(t => t.parent_id === record.id);
+                return (
+                    <Text className={isParent ? "font-bold text-orange-600" : "text-slate-600"}>
+                        {record.cost_total ? record.cost_total.toLocaleString() : '0'} VNĐ
+                    </Text>
+                );
+            }
+        },
+        {
+            title: "Thao tác",
+            width: "20%",
+            align: "center",
+            render: (_, record) => {
+                const isParent = tasks.some(t => t.parent_id === record.id);
+                if (isParent) return <Tag color="default" className="border-none bg-slate-100 text-slate-400">Tự động tổng</Tag>;
+
+                if (role !== "PM") return <Text type="secondary" italic size="small">Chỉ xem</Text>;
+
+                const editable = isEditing(record);
+                return editable ? (
+                    <Space size="small">
+                        <Button type="primary" size="small" icon={<CheckOutlined />} className="bg-emerald-600" onClick={() => save(record.id)} />
+                        <Button size="small" danger icon={<CloseOutlined />} onClick={() => setEditingKey('')} />
+                    </Space>
+                ) : (
+                    <Button 
+                        type="text" 
+                        icon={<EditOutlined className="text-blue-600" />} 
+                        onClick={() => edit(record)} 
+                        disabled={editingKey !== ''}
+                    >
+                        Sửa tiền
+                    </Button>
+                );
+            },
+        },
+    ];
+
+    if (loading && tasks.length === 0) return <div className="flex justify-center items-center h-64"><Spin size="large" /></div>;
 
     return (
-        <div style={{ padding: "20px" }}>
-            <h2>Quản Lý Chi Phí</h2>
-            <p>Dự án: {projectCode}</p>
+        <div className="p-6 bg-slate-50 min-h-screen">
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800 m-0 flex items-center gap-2">
+                        <DollarOutlined className="text-orange-500" /> Quản Lý Chi Phí Dự Án
+                    </h2>
+                    <p className="text-gray-500 mt-1">
+                        Dự án: <Tag color="blue">{projectCode}</Tag> | 
+                        Quyền: <Tag color={role === 'PM' ? 'gold' : 'cyan'}>{role}</Tag>
+                    </p>
+                </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ padding: "15px", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>Tổng Chi Phí</div>
-                    <div style={{ fontSize: "20px", fontWeight: "bold", color: "#009900" }}>{(totalProjectCost / 1000000).toFixed(1)}M ₫</div>
-                </div>
-                <div style={{ padding: "15px", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>Chi Phí Ước Lượng</div>
-                    <div style={{ fontSize: "20px", fontWeight: "bold", color: "#0066cc" }}>{(estimatedCostByDuration / 1000000).toFixed(1)}M ₫</div>
-                </div>
-                <div style={{ padding: "15px", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>Tổng Công Việc</div>
-                    <div style={{ fontSize: "20px", fontWeight: "bold", color: "#cc0066" }}>{tasks.length}</div>
-                </div>
+                <Card bordered={false} className="shadow-md border-l-4 border-l-orange-500 min-w-[300px]">
+                    <Statistic 
+                        title="TỔNG CHI PHÍ DỰ TOÁN" 
+                        value={totalProjectCost} 
+                        suffix="VNĐ" 
+                        valueStyle={{ color: '#ea580c', fontWeight: '800' }} 
+                    />
+                </Card>
             </div>
 
-            <h3 style={{ marginTop: "20px", marginBottom: "15px" }}>Chi Phí Theo Trạng Thái</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px", marginBottom: "20px" }}>
-                <div style={{ padding: "15px", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>TO DO</div>
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#cc9900" }}>{(costByStatus.TODO / 1000000).toFixed(2)}M ₫</div>
-                    <div style={{ fontSize: "11px", color: "#999", marginTop: "5px" }}>{tasks.filter(t => t.status === "TODO").length} công việc</div>
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div className="mb-4 p-3 bg-orange-50 border border-orange-100 rounded-lg text-orange-800 text-sm flex items-center gap-2">
+                    <span>💰</span>
+                    <span>
+                        <strong>Lưu ý:</strong> Sếp chỉ cần nhập chi phí cho các công việc nhỏ nhất (Task lá). 
+                        Số tiền sẽ tự động được cộng dồn lên các nhóm việc cha.
+                    </span>
                 </div>
-                <div style={{ padding: "15px", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>DOING</div>
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#0066cc" }}>{(costByStatus.DOING / 1000000).toFixed(2)}M ₫</div>
-                    <div style={{ fontSize: "11px", color: "#999", marginTop: "5px" }}>{tasks.filter(t => t.status === "DOING").length} công việc</div>
-                </div>
-                <div style={{ padding: "15px", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>DONE</div>
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#009900" }}>{(costByStatus.DONE / 1000000).toFixed(2)}M ₫</div>
-                    <div style={{ fontSize: "11px", color: "#999", marginTop: "5px" }}>{tasks.filter(t => t.status === "DONE").length} công việc</div>
-                </div>
-            </div>
-
-            <h3 style={{ marginTop: "20px", marginBottom: "15px" }}>Chi Phí Theo Ưu Tiên</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px", marginBottom: "20px" }}>
-                <div style={{ padding: "15px", border: "1px solid #ff6666", borderRadius: "4px", background: "#ffe6e6" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>🔴 Cao</div>
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#cc0000" }}>{(costByPriority.High / 1000000).toFixed(2)}M ₫</div>
-                </div>
-                <div style={{ padding: "15px", border: "1px solid #ffcc66", borderRadius: "4px", background: "#fff5e6" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>🟡 Trung bình</div>
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#cc9900" }}>{(costByPriority.Medium / 1000000).toFixed(2)}M ₫</div>
-                </div>
-                <div style={{ padding: "15px", border: "1px solid #66cc66", borderRadius: "4px", background: "#e6ffe6" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>🟢 Thấp</div>
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: "#009900" }}>{(costByPriority.Low / 1000000).toFixed(2)}M ₫</div>
-                </div>
-            </div>
-
-            <h3 style={{ marginTop: "20px", marginBottom: "15px" }}>Chi Phí Theo Công Việc</h3>
-            <div style={{ border: "1px solid #ddd", borderRadius: "4px" }}>
-                {rootTasks.length > 0 ? (
-                    rootTasks.map(task => (
-                        <CostRow key={task.id} task={task} allTasks={tasks} level={0} onUpdate={handleUpdateCost} />
-                    ))
-                ) : (
-                    <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Chưa có công việc nào</div>
-                )}
-            </div>
-
-            <div style={{ marginTop: "20px", padding: "15px", background: "#fff8e6", border: "1px solid #ffcc99", borderRadius: "4px", color: "#cc8800" }}>
-                💡 <strong>Mẹo:</strong> Nhập chi phí ước lượng cho mỗi công việc. Tổng chi phí ước lượng được tính bằng chi phí × số ngày.
+                
+                <Form form={form} component={false}>
+                    <Table
+                        columns={columns}
+                        dataSource={treeData}
+                        pagination={false}
+                        bordered
+                        size="middle"
+                        expandable={{ 
+                            expandedRowKeys: expandedRowKeys,
+                            onExpandedRowsChange: (keys) => setExpandedRowKeys(keys)
+                        }}
+                        rowClassName={(record) => (tasks.some(t => t.parent_id === record.id) ? "bg-slate-50/50" : "")}
+                    />
+                </Form>
             </div>
         </div>
     );
 };
 
-export default CostManagement;
+export default Cost;

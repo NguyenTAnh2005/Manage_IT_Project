@@ -67,6 +67,7 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    tasks = relationship("Task", back_populates="owner")
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, full_name={self.full_name})>"
@@ -208,10 +209,13 @@ class Task(Base):
     # ===== AUDIT =====
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # MỚI: Người phụ trách công việc (Owner/Assignee)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     
     # ===== RELATIONSHIPS =====
     project = relationship("Project", back_populates="tasks", foreign_keys=[project_id])
-    
+    owner = relationship("User", foreign_keys=[owner_id])
     # Self-referencing relationship
     subtasks = relationship(
         "Task",

@@ -6,11 +6,12 @@ Dùng để lấy thông tin user từ JWT token, validate quyền truy cập, v
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import decode_access_token, oauth_scheme 
 from app.crud.crud_user import get_user_by_id
-from app.models.model import User
+from app.models.model import User, ProjectMember, RoleEnum
 
 async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:
@@ -37,7 +38,7 @@ async def get_current_user(
         )
     
     # Lấy user_id từ token payload
-    user_id_str = payload.get("data") # Sếp thấy trong auth.py em lưu id ở key "data"
+    user_id_str = payload.get("data")
     
     if not user_id_str:
         raise HTTPException(
@@ -118,3 +119,53 @@ async def get_current_user_optional(
     
     user = await get_user_by_id(db, user_id)
     return user
+
+
+# ✅ 1. Dependency lấy thông tin Member trong dự án cụ thể
+async def get_current_project_member(
+    project_id: int, # FastAPI sẽ tự động bóc project_id từ URL path
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> ProjectMember:
+    stmt = select(ProjectMember).where(
+        (ProjectMember.project_id == project_id) & 
+        (ProjectMember.user_id == current_user.id)
+    )
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+    
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không phải thành viên của dự án này"
+        )
+    return member
+
+# ✅ 2. Dependency CHECK QUYỀN PM (Sếp dùng cái này cho CRUD)
+async def get_current_pm(
+    member: ProjectMember = Depends(get_current_project_member)
+) -> ProjectMember:
+    # Kiểm tra xem role có phải PM không
+    if member.role != RoleEnum.PM:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ Trưởng dự án (PM) mới có quyền thực hiện hành động này"
+        )
+    return member
+
+# Thêm vào dependencies.py
+async def get_current_pm_by_project_id(
+    project_id: int, 
+    current_user: User, 
+    db: AsyncSession
+) -> ProjectMember:
+    stmt = select(ProjectMember).where(
+        (ProjectMember.project_id == project_id) & 
+        (ProjectMember.user_id == current_user.id) &
+        (ProjectMember.role == RoleEnum.PM)
+    )
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=403, detail="Chỉ Trưởng dự án (PM) mới có quyền này")
+    return member

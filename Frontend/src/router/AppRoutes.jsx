@@ -9,7 +9,7 @@ import JoinProject from '../page/JoinProject';
 import CreateProject from '../page/CreateProject';
 import WbsDashBoard from '../page/WBS';
 import KanbanBoard from '../page/Kanban';
-import GanttChart from '../page/Gantt';
+import GanttChart from '../page/GanttChart';
 import CostManagement from '../page/Cost';
 import PERTCalculation from '../page/PERT';
 

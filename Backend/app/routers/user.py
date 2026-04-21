@@ -18,27 +18,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    """
-    Lấy thông tin của user hiện tại.
-    
-    **Cần authentication:** Đúng (Bearer token)
-    
-    Returns:
-        UserResponse: Thông tin user (id, email, full_name, created_at, updated_at)
-        
-    Raises:
-        401: Token không hợp lệ hoặc đã hết hạn
-        
-    Ví dụ response:
-        {
-            "id": 1,
-            "email": "user@example.com",
-            "full_name": "Tên người dùng",
-            "created_at": "2026-04-16T10:30:00",
-            "updated_at": "2026-04-16T10:30:00"
-        }
-    """
+async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 

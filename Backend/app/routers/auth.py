@@ -194,12 +194,14 @@ async def register(
 #         )
 
 
-@router.post("/login", response_model=Token)
+# Backend\app\routers\auth.py
+
+@router.post("/login", response_model=Token) # Chốt trả về chỉ Token theo ý sếp
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    # Gọi thẳng hàm verify từ crud_user, truyền email (chính là form_data.username) và password
+    # Verify user
     user = await verify_user_password(db, form_data.username, form_data.password)
 
     if not user:
@@ -209,11 +211,11 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    # Tạo Token chuẩn xịn
+    # Tạo Token đúng cấu hình sếp chọn
     access_token = create_access_token(
         data = {
-            "data" : str(user.id),
-            "sub": str(user.email) # Bắt buộc phải có 'sub' để thằng OAuth2 nó nhận diện
+            "data" : str(user.id),  # ID để backend truy vấn
+            "sub": str(user.email)  # Email để định danh OAuth2
         }
     )
     
