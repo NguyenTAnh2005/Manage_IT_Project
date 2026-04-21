@@ -15,7 +15,7 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
     (config) =>{
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem('PM_access_token');
         if(token){
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -36,7 +36,7 @@ axiosInstance.interceptors.response.use(
     (err)=>{
         if(err.response && err.response.status == 401){
             console.error("Phiên đăng nhập hết hạn hoặc access token không hợp lệ!");
-            localStorage.removeItem('access_token');
+            localStorage.removeItem('PM_access_token');
             if(window.location.pathname != "/login"){
                 window.location.href = '/login';
             }

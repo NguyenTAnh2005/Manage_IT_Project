@@ -1,4 +1,4 @@
-import uuid
+from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -7,7 +7,7 @@ from app.core.config import settings
 
 # Context để hash password
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+oauth_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def hash_password(password: str) -> str:
     """

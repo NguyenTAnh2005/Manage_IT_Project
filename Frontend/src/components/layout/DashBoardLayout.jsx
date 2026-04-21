@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { 
     ListTree, 
     KanbanSquare, 
@@ -8,8 +9,10 @@ import {
     Settings,
     Calculator
 } from "lucide-react";
-import ThemeToggle from "../common/ThemeToggle"; // Đường dẫn tuỳ project của em
-import { useAuth } from "../../context/AuthContext"; // Import hàm outProject
+import ThemeToggle from "../common/ThemeToggle";
+import { useAuth } from "../../context/AuthContext";
+import { getCurrentUser, getUserRoleInProject } from "../../services/userService";
+import { projectService } from "../../services/projectService";
 
 // ==========================================
 // COMPONENT SIDEBAR (THANH ĐIỀU HƯỚNG BÊN TRÁI)
@@ -17,7 +20,44 @@ import { useAuth } from "../../context/AuthContext"; // Import hàm outProject
 const Sidebar = () => {
     const { projectCode } = useParams();
     const navigate = useNavigate();
-    const { outProject } = useAuth(); // Dùng hàm lấy từ context của em
+    const { outProject } = useAuth();
+    const [user, setUser] = useState(null);
+    const [role, setRole] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Load user info và role
+    useEffect(() => {
+        const loadUserInfo = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+
+                // Lấy thông tin user hiện tại
+                const currentUser = await getCurrentUser();
+                setUser(currentUser);
+
+                // Lấy project ID từ code
+                if (projectCode) {
+                    const projectsResponse = await projectService.getMyProjects();
+                    const project = projectsResponse.projects.find(p => p.project_code === projectCode);
+                    
+                    if (project) {
+                        // Lấy role của user trong project
+                        const userRole = await getUserRoleInProject(project.id);
+                        setRole(userRole);
+                    }
+                }
+            } catch (err) {
+                console.error("Lỗi khi load thông tin user:", err);
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadUserInfo();
+    }, [projectCode]);
 
     // Danh sách các menu điều hướng
     const navLinks = [
@@ -29,8 +69,19 @@ const Sidebar = () => {
     ];
 
     const handleExitProject = () => {
-        outProject(); // Xóa projectCode ở LocalStorage
-        navigate('/join-project'); // Đá về trang chọn dự án
+        outProject();
+        navigate('/join-project');
+    };
+
+    // Lấy chữ cái đầu từ tên người dùng
+    const getInitials = (fullName) => {
+        if (!fullName) return "?";
+        return fullName
+            .split(" ")
+            .map(word => word[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
     };
 
     return (
@@ -41,7 +92,9 @@ const Sidebar = () => {
                 <h1 className="text-xl font-bold text-slate-800 dark:text-white uppercase truncate">
                     {projectCode}
                 </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Trưởng dự án: Tuấn Anh</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Trưởng dự án: {role === "PM" ? "Bạn" : "Khác"}
+                </p>
             </div>
 
             {/* 2. KHU VỰC MENU ĐIỀU HƯỚNG (MIDDLE - FLEX GROW) */}
@@ -81,16 +134,20 @@ const Sidebar = () => {
 
                 {/* Khung Profile */}
                 <div className="flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                    {/* Avatar tròn (Lấy chữ cái đầu) */}
+                    {/* Avatar tròn */}
                     <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold flex-shrink-0">
-                        TA
+                        {loading ? "..." : getInitials(user?.full_name)}
                     </div>
                     {/* Thông tin */}
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">Tuấn Anh</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">PM</p>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">
+                            {loading ? "Đang tải..." : user?.full_name || "User"}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                            {loading ? "-" : (role || "MEMBER")}
+                        </p>
                     </div>
-                    {/* Nút Setting (Chờ múa Modal sau) */}
+                    {/* Nút Setting */}
                     <button className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                         <Settings size={18} />
                     </button>

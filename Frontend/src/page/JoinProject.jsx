@@ -1,70 +1,164 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { projectService } from "../services/projectService"; // Import service mới
 import Input from "../components/common/Input";
 import ThemeToggle from "../components/common/ThemeToggle";
-import { LayoutGrid, ArrowRight } from "lucide-react";
+import { LayoutGrid, ArrowRight, Loader2, FolderPlus, LogOut } from "lucide-react";
 
 const JoinProject = () => {
     const [code, setCode] = useState("");
-    const { joinProject } = useAuth();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(""); // Thêm state báo lỗi
+    
+    const { joinProject, logOut } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (code.trim()) {
-            // Lưu mã dự án vào AuthContext (và localStorage)
-            joinProject(code.trim());
+        const cleanCode = code.trim();
+        
+        if (!cleanCode) return;
+
+        setError("");
+        setLoading(true);
+
+        try {
+            // 1. Gọi API gửi mã xuống cho Vũ check
+            await projectService.joinProject(cleanCode);
             
-            // Chuyển hướng thẳng vào Dashboard của dự án đó
-            navigate(`/dashboard/${code.trim()}/wbs`);
+            // 2. Nếu Thành công (Chưa từng join, giờ mới join)
+            joinProject(cleanCode);
+            navigate(`/dashboard/${cleanCode}/wbs`);
+
+        } catch (err) {
+            // 3. Xử lý kịch bản lỗi từ Backend
+            const status = err.response?.status;
+            const detail = err.response?.data?.detail;
+
+            if (status === 400 && detail === "Bạn đã là member của project này") {
+                // CÚ LỪA CỦA BACKEND: Đã là member thì cứ mở cửa cho vào thôi!
+                joinProject(cleanCode);
+                navigate(`/dashboard/${cleanCode}/wbs`);
+            } 
+            else if (status === 404) {
+                setError("Mã dự án không tồn tại! Vui lòng kiểm tra lại.");
+            } 
+            else {
+                setError("Có lỗi xảy ra từ máy chủ. Vui lòng thử lại sau.");
+                console.error("Lỗi Join Project:", err);
+            }
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const handleLogout = () => {
+        logOut();
+        navigate("/login");
     };
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-light-bg dark:bg-dark-bg transition-colors duration-300">
-            {/* Nút đổi Theme ở góc màn hình */}
-            <div className="absolute top-5 right-5">
+            <div className="absolute top-5 right-5 flex gap-2">
                 <ThemeToggle />
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg font-medium transition-colors"
+                >
+                    <LogOut size={18} />
+                    Đăng xuất
+                </button>
             </div>
 
-            <form 
-                onSubmit={handleSubmit}
-                className="card w-full max-w-md flex flex-col gap-6 p-10 shadow-2xl"
-            >
-                <div className="text-center space-y-2">
-                    <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <LayoutGrid className="text-primary" size={32} />
-                    </div>
-                    <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">
-                        Vào Không Gian Làm Việc
-                    </h2>
-                    <p className="text-sm text-light-muted dark:text-dark-muted">
-                        Nhập mã dự án được cấp để bắt đầu quản lý công việc
-                    </p>
-                </div>
-
-                <Input 
-                    label="Mã dự án"
-                    placeholder="Ví dụ: HABIT_01, PM_PROJ..."
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    isRequired={true}
-                    icon={<LayoutGrid className="absolute top-[28%] left-[2%] text-slate-400" size={18}/>}
-                />
-
-                <button 
-                    type="submit" 
-                    className="btn-primary w-full flex items-center justify-center gap-2 py-3"
+            <div className="w-full max-w-2xl flex gap-8 px-4 flex-col sm:flex-row">
+                {/* Form Tham gia dự án */}
+                <form 
+                    onSubmit={handleSubmit}
+                    className="card flex-1 flex flex-col gap-6 p-10 shadow-2xl dark:shadow-gray-400"
                 >
-                    Tiến vào dự án
-                    <ArrowRight size={18} />
-                </button>
+                    <div className="text-center space-y-2">
+                        <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <LayoutGrid className="text-primary" size={32} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">
+                            Tham gia Dự Án
+                        </h2>
+                        <p className="text-sm text-light-muted dark:text-dark-muted">
+                            Nhập mã dự án để bắt đầu quản lý công việc
+                        </p>
+                    </div>
 
-                <p className="text-xs text-center text-light-muted dark:text-dark-muted italic">
-                    * Lưu ý: Nếu chưa có mã, hãy liên hệ Trưởng dự án (PM) để được cấp quyền.
-                </p>
-            </form>
+                    {/* Khung hiển thị lỗi */}
+                    {error && (
+                        <span className="bg-red-50 border border-red-200 text-red-600 w-full text-sm italic px-3 py-2 rounded-md">
+                            ⚠️ {error}
+                        </span>
+                    )}
+
+                    <Input 
+                        label="Mã dự án"
+                        placeholder="Ví dụ: HABIT_01, PM_PROJ..."
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        isRequired={true}
+                        icon={<LayoutGrid className="absolute top-[28%] left-[2%] text-slate-400" size={18}/>}
+                    />
+
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className={`btn-primary w-full flex items-center justify-center gap-2 py-3 ${loading && 'opacity-60 cursor-not-allowed'}`}
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={18} /> Đang kiểm tra...
+                            </>
+                        ) : (
+                            <>
+                                Tiến vào dự án <ArrowRight size={18} />
+                            </>
+                        )}
+                    </button>
+
+                    <p className="text-xs text-center text-light-muted dark:text-dark-muted italic">
+                        * Nếu chưa có mã, hãy liên hệ Trưởng dự án (PM)
+                    </p>
+                </form>
+
+                {/* Form Tạo dự án */}
+                <div className="card flex-1 flex flex-col gap-6 p-10 shadow-2xl dark:shadow-gray-400">
+                    <div className="text-center space-y-2">
+                        <div className="bg-green-100/50 dark:bg-green-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FolderPlus className="text-green-600 dark:text-green-400" size={32} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">
+                            Tạo Dự Án Mới
+                        </h2>
+                        <p className="text-sm text-light-muted dark:text-dark-muted">
+                            Bạn muốn làm chủ dự án?
+                        </p>
+                    </div>
+
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                        Nếu bạn là Trưởng Dự Án (PM), hãy tạo dự án mới để bắt đầu quản lý.
+                    </p>
+
+                    <button 
+                        onClick={() => navigate("/create-project")}
+                        className={`btn-primary w-full flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 active:bg-green-800`}
+                    >
+                        <FolderPlus size={18} />
+                        Tạo Dự Án Ngay
+                    </button>
+
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md p-3">
+                        <p className="text-xs text-green-700 dark:text-green-300">
+                            ✨ <strong>Lợi ích PM:</strong> Quản lý toàn bộ công việc, thành viên, và tiến độ dự án.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
