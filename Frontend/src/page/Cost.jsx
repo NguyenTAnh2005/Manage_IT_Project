@@ -31,9 +31,7 @@ export const Cost = () => {
     const [editingKey, setEditingKey] = useState('');
     const [expandedRowKeys, setExpandedRowKeys] = useState([]);
 
-    // ==========================================
-    // FETCH DATA
-    // ==========================================
+    // Lấy dữ liệu dự án và công việc
     const fetchData = async () => {
         try {
             if (!projectId) setLoading(true);
@@ -66,15 +64,13 @@ export const Cost = () => {
         }
     }, [tasks]);
 
-    // ✅ TỔNG CHI PHÍ DỰ ÁN (Cộng dồn từ các Task Gốc)
+    // Calculate total project cost from root tasks only
     const totalProjectCost = useMemo(() => {
         const rootTasks = tasks.filter(t => t.parent_id === null);
         return rootTasks.reduce((sum, t) => sum + (parseFloat(t.cost_total) || 0), 0);
     }, [tasks]);
 
-    // ==========================================
-    // KIỂM TRA QUYỀN & EDIT INLINE
-    // ==========================================
+    // Permission check and inline editing handlers
     const checkPermission = () => {
         if (role !== "PM") {
             showError("Chỉ Trưởng dự án (PM) mới có quyền chỉnh sửa chi phí!");
@@ -199,14 +195,6 @@ export const Cost = () => {
             </div>
 
             <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                <div className="mb-4 p-3 bg-orange-50 border border-orange-100 rounded-lg text-orange-800 text-sm flex items-center gap-2">
-                    <span>💰</span>
-                    <span>
-                        <strong>Lưu ý:</strong> Sếp chỉ cần nhập chi phí cho các công việc nhỏ nhất (Task lá). 
-                        Số tiền sẽ tự động được cộng dồn lên các nhóm việc cha.
-                    </span>
-                </div>
-                
                 <Form form={form} component={false}>
                     <Table
                         columns={columns}

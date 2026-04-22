@@ -272,10 +272,66 @@ async def delete_project(
     if not project:
         return False
     
-    # Xóa project
+    # Xóa project (cascade delete sẽ xóa ProjectMembers liên quan)
     await db.delete(project)
     
     # Commit
     await db.commit()
     
     return True
+
+from sqlalchemy.orm import joinedload
+
+# 1. Lấy danh sách thành viên dự án
+async def get_project_members(db: AsyncSession, project_id: int) -> list[ProjectMember]:
+    stmt = (
+        select(ProjectMember)
+        .options(joinedload(ProjectMember.user)) # Móc luôn bảng User sang
+        .where(ProjectMember.project_id == project_id)
+        .order_by(ProjectMember.role.asc()) # PM hiện lên đầu, Member hiện sau
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+# 2. Đổi quyền thành viên (Set Role)
+async def change_member_role(db: AsyncSession, project_id: int, target_user_id: int, new_role: str) -> ProjectMember | None:
+    # BƯỚC 1: Lấy member ra (KHÔNG CẦN joinedload ở bước này vì chỉ để update)
+    stmt = select(ProjectMember).where(
+        (ProjectMember.project_id == project_id) & (ProjectMember.user_id == target_user_id)
+    )
+    member = (await db.execute(stmt)).scalar_one_or_none()
+    
+    if member:
+        # BƯỚC 2: Cập nhật role an toàn bằng Enum
+        # Thường SQLAlchemy Enum thích nhận giá trị Enum chuẩn hơn là chuỗi thuần
+        member.role = RoleEnum.PM if new_role == "PM" else RoleEnum.MEMBER
+        
+        await db.commit()
+        
+        # BƯỚC 3: QUAN TRỌNG NHẤT
+        # Bắt buộc phải query lại từ đầu KÈM THEO joinedload để trả về Router.
+        # Tuyệt đối không dùng `await db.refresh(member)` ở đây.
+        refresh_stmt = (
+            select(ProjectMember)
+            .options(joinedload(ProjectMember.user))
+            .where(ProjectMember.id == member.id)
+        )
+        refreshed_member = (await db.execute(refresh_stmt)).scalar_one_or_none()
+        
+        return refreshed_member
+    
+    return None
+
+# 3. Kích thành viên khỏi dự án
+async def remove_project_member(db: AsyncSession, project_id: int, target_user_id: int) -> bool:
+    stmt = select(ProjectMember).where(
+        (ProjectMember.project_id == project_id) & (ProjectMember.user_id == target_user_id)
+    )
+    member = (await db.execute(stmt)).scalar_one_or_none()
+    
+    if member:
+        await db.delete(member)
+        await db.commit()
+        return True
+        
+    return False

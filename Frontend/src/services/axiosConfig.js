@@ -1,35 +1,32 @@
 import axios from 'axios';
 
-// Create Instance
+// Tạo axios instance với cấu hình chung
 const axiosInstance = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
-    headers:{'Content-Type':'application/json',},
+    headers:{'Content-Type':'application/json'},
 });
 
-// ===================================================================
-// REQUEST INTERCEPTOR: Hành động chặn lại TRƯỚC KHI gửi thư đi
-// ===================================================================
-// Thực chất là get access_token trên Localstorage, đính vào header để gửi Req
-
+// Request interceptor: Thêm token vào header trước khi gửi request
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('PM_access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+    const token = localStorage.getItem('PM_access_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 });
 
-// ===================================================================
-// RESPONSE INTERCEPTOR: Hành động chặn lại SAU KHI nhận thư phản hồi về
-// ===================================================================
+// Response interceptor: Xử lý lỗi 401 (token hết hạn)
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('PM_access_token');
-      window.location.href = '/login'; // Đẩy về login ngay lập tức
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Xóa token và redirect về login
+            localStorage.removeItem('PM_access_token');
+            localStorage.removeItem('PM_project_code');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
 );
-
 
 export default axiosInstance;

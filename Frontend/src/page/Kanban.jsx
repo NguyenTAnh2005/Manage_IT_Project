@@ -6,30 +6,29 @@ import { UserOutlined, ClockCircleOutlined, CheckCircleOutlined, LeftOutlined, R
 import { taskService } from "../services/taskService";
 import { projectService } from "../services/projectService";
 import { useAuth } from "../context/AuthContext";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import axiosInstance from "../services/axiosConfig";
 import { showSuccess, showError } from "../utils/toast";
 
 const { Text } = Typography;
 
-// ==========================================
-// 1. THẺ TASK (CÓ CHỨC NĂNG BÁO CÁO NHẬN DIỆN)
-// ==========================================
+/**
+ * TaskCard - Individual task card in Kanban column.
+ * Shows task name, status, owner, and allows status updates for authorized users.
+ */
 const TaskCard = ({ task, currentUser, role, onMoveStatus }) => {
-    // ✅ Lấy ID bằng mọi cách (chống lỗi cấu trúc User bị lồng nhau)
-    const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.data?.id;
+    // Extract user ID from various possible object structures
+    const { id: currentUserId, name: currentUserName } = useCurrentUser(currentUser);
     const taskOwnerId = task?.owner_id || task?.owner?.id;
-
-    // Ép kiểu về String để so sánh an toàn tuyệt đối
     const isOwner = currentUserId && taskOwnerId && String(taskOwnerId) === String(currentUserId);
     
-    // Logic chốt: Có chủ thì chỉ chủ được bấm. Chưa chủ thì PM được bấm.
+    // Permission: task owner can move tasks, or PM can move unassigned tasks
     const canMove = taskOwnerId ? isOwner : role === 'PM';
 
-    // 🕵️ TOOLTIP ĐIỀU TRA LỖI (Giúp sếp biết hệ thống đang nghĩ sếp là ai)
-    const myName = currentUser?.full_name || currentUser?.name || currentUser?.username || "Ẩn danh (Lỗi useAuth)";
+    // Lock reason tooltip for unauthorized users
     const ownerName = task?.owner?.full_name || "người khác";
     const lockReason = taskOwnerId 
-        ? `Việc này của [${ownerName}]. Nhưng hệ thống nhận diện bạn đang đăng nhập là: [${myName}]!` 
+        ? `Việc này của [${ownerName}]. Bạn đăng nhập là: [${currentUserName}].` 
         : "Chỉ PM mới được nhận việc trống";
 
     const renderStatusTag = () => {
@@ -55,7 +54,7 @@ const TaskCard = ({ task, currentUser, role, onMoveStatus }) => {
                     </Text>
                 </div>
                 
-                {/* 🔒 Ổ KHÓA SẼ HIỂN THỊ NGUYÊN NHÂN CHẶN CỤ THỂ NẾU DÍ CHUỘT VÀO */}
+                {/* Lock icon with reason tooltip - shown when user cannot move task */}
                 {!canMove && (
                     <Tooltip title={lockReason} color="red" overlayInnerStyle={{ fontWeight: "bold" }}>
                         <LockOutlined className="text-red-400 text-lg cursor-help" />
@@ -63,7 +62,7 @@ const TaskCard = ({ task, currentUser, role, onMoveStatus }) => {
                 )}
             </div>
 
-            {/* NÚT BẤM CHỈ HIỆN KHI CÓ QUYỀN */}
+            {/* Move buttons only visible when user has permission */}
             {canMove && (
                 <div className="flex justify-between mt-4 pt-2">
                     <Button size="small" icon={<LeftOutlined />} disabled={task.status === 'TODO'} onClick={() => onMoveStatus(task, 'prev')}>
@@ -78,9 +77,10 @@ const TaskCard = ({ task, currentUser, role, onMoveStatus }) => {
     );
 };
 
-// ==========================================
-// 2. CỘT KANBAN 
-// ==========================================
+/**
+ * KanbanColumn - Single column in Kanban board.
+ * Displays tasks with count and allows scrolling.
+ */
 const KanbanColumn = ({ title, tasks, colorClass, currentUser, role, onMoveStatus }) => {
     return (
         <div className="flex-1 min-w-[300px] max-w-[350px] bg-slate-100/50 rounded-xl p-4 flex flex-col h-full border border-slate-200">
@@ -100,13 +100,14 @@ const KanbanColumn = ({ title, tasks, colorClass, currentUser, role, onMoveStatu
     );
 };
 
-// ==========================================
-// 3. MAIN BOARD
-// ==========================================
+/**
+ * Main Kanban board component.
+ * Displays tasks grouped by status (TODO, DOING, DONE) with drag-and-drop functionality.
+ */
 export const Kanban = () => {
     const { projectCode } = useParams();
     
-    // ✅ TRÍCH XUẤT USER MỌI NƠI ĐỂ CỨU CÁNH useAuth()
+    // Get user from context or localStorage fallback
     const authContext = useAuth() || {};
     const contextUser = authContext.user || authContext.userInfo || authContext.currentUser;
     const [localUser, setLocalUser] = useState(null);
@@ -118,7 +119,6 @@ export const Kanban = () => {
         } catch (e) {}
     }, []);
 
-    // Lấy user từ Context, nếu rỗng thì moi từ LocalStorage ra
     const activeUser = contextUser || localUser;
 
     const [tasksByStatus, setTasksByStatus] = useState({ TODO: [], DOING: [], DONE: [] });
@@ -137,6 +137,7 @@ export const Kanban = () => {
 
             const kanbanRes = await taskService.getTasksByStatus(pId);
             
+            // Filter to exclude parent tasks (show only leaf tasks)
             const isNotParent = (task, allTasks) => !allTasks.some(t => t.parent_id === task.id);
             const allTasks = [...(kanbanRes.todo || []), ...(kanbanRes.doing || []), ...(kanbanRes.done || [])];
 
@@ -198,7 +199,7 @@ export const Kanban = () => {
 
             <div className="overflow-x-auto pb-4">
                 <div className="flex gap-6 items-stretch h-[60vh] min-w-[950px] justify-center">
-                    {/* QUAN TRỌNG: Đã truyền activeUser vào các cột */}
+                    {/* Pass active user to columns for permission checks */}
                     <KanbanColumn title="📌 Cần làm (TODO)" tasks={tasksByStatus.TODO} colorClass="border-slate-400" currentUser={activeUser} role={role} onMoveStatus={handleMoveStatus} />
                     <KanbanColumn title="⏳ Đang làm (DOING)" tasks={tasksByStatus.DOING} colorClass="border-blue-500" currentUser={activeUser} role={role} onMoveStatus={handleMoveStatus} />
                     <KanbanColumn title="✅ Hoàn thành (DONE)" tasks={tasksByStatus.DONE} colorClass="border-emerald-500" currentUser={activeUser} role={role} onMoveStatus={handleMoveStatus} />

@@ -50,9 +50,8 @@ const Register = () => {
         }
 
         try {
-            // Gọi API đăng ký từ service
             const res = await authService.register(email, password, fullName);
-            setSuccessMessage("Đăng ký thành công! Vui lòng đăng nhập.");
+            setSuccessMessage("Đăng ký thành công! Chuyển hướng...");
             
             // Reset form
             setEmail("");
@@ -60,7 +59,7 @@ const Register = () => {
             setConfirmPassword("");
             setFullName("");
 
-            // Chuyển hướng về Login sau 2 giây
+            // Giữ loading state cho đến khi chuyển hướng (UX tốt hơn)
             setTimeout(() => {
                 navigate("/login");
             }, 2000);
@@ -69,7 +68,6 @@ const Register = () => {
             console.error("Lỗi đăng ký: ", err);
             const errorDetail = err.response?.data?.detail || "Đăng ký thất bại. Vui lòng thử lại!";
             setError(errorDetail);
-        } finally {
             setLoading(false);
         }
     };

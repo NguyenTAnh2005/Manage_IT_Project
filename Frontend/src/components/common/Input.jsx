@@ -1,4 +1,5 @@
-const Input = ({ icon, label, placeholder, value, onChange, isRequired, type = "text" }) => {
+// Frontend/src/components/common/Input.jsx
+const Input = ({ icon, label, placeholder, value, onChange, isRequired, type = "text", name }) => {
     return (
         <div style={{ display: "flex", flexDirection: "column", width: "100%", marginBottom: "15px" }}>
             {label && (
@@ -24,6 +25,7 @@ const Input = ({ icon, label, placeholder, value, onChange, isRequired, type = "
                         boxSizing: "border-box"
                     }}
                     type={type}
+                    name={name} // ✅ QUAN TRỌNG NHẤT LÀ DÒNG NÀY
                     required={isRequired}
                     placeholder={placeholder}
                     value={value}

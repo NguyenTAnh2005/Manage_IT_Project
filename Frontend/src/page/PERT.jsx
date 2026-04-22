@@ -23,15 +23,13 @@ export const PERTCalculation = () => {
     
     const [tasks, setTasks] = useState([]);
     const [projectId, setProjectId] = useState(null);
-    const [role, setRole] = useState(null); // Lưu role để check quyền
+    const [role, setRole] = useState(null); // Lưu quyền user để kiểm tra quyền sửa
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [editingKey, setEditingKey] = useState('');
     const [expandedRowKeys, setExpandedRowKeys] = useState([]);
 
-    // ==========================================
-    // LẤY DỮ LIỆU & QUYỀN
-    // ==========================================
+    // Fetch project data, user role, and tasks
     const fetchData = async () => {
         try {
             if (!projectId) setLoading(true);
@@ -39,7 +37,7 @@ export const PERTCalculation = () => {
             const pId = projectRes.id;
             setProjectId(pId);
 
-            // Lấy role của user trong dự án này
+            // Get user's role in this project
             const roleRes = await axiosInstance.get(`/projects/${pId}/my-role`);
             setRole(roleRes.data.role);
 
@@ -66,15 +64,13 @@ export const PERTCalculation = () => {
         }
     }, [tasks]);
 
-    // ✅ CHỈ GIỮ LẠI TỔNG EST (Dựa trên các task gốc)
+    // Calculate total EST from root tasks only
     const totalEST = useMemo(() => {
         const rootTasks = tasks.filter(t => t.parent_id === null);
         return rootTasks.reduce((sum, t) => sum + (parseFloat(t.est) || 0), 0).toFixed(2);
     }, [tasks]);
 
-    // ==========================================
-    // KIỂM TRA QUYỀN & XỬ LÝ SỬA INLINE
-    // ==========================================
+    // Permission check and inline editing handlers
     const checkPermission = () => {
         if (role !== "PM") {
             showError("Chỉ Trưởng dự án (PM) mới có quyền chỉnh sửa thông số PERT!");
@@ -86,7 +82,7 @@ export const PERTCalculation = () => {
     const isEditing = (record) => record.id === editingKey;
 
     const edit = (record) => {
-        // ✅ CHẶN NGAY KHI BẤM NÚT SỬA
+        // Check permission before allowing edit
         if (!checkPermission()) return;
 
         form.setFieldsValue({
@@ -117,7 +113,7 @@ export const PERTCalculation = () => {
             
             showSuccess("Đã cập nhật PERT!");
             setEditingKey('');
-            fetchData(); // Load lại để Backend tính toán cộng dồn
+            fetchData(); // Refresh to get updated metrics
         } catch (errInfo) {
             if (errInfo?.response) showError(errInfo.response.data.detail);
         }
@@ -242,7 +238,7 @@ export const PERTCalculation = () => {
                     <p className="text-gray-500 mt-1">Dự án: <Tag color="blue">{projectCode}</Tag> | Vai trò: <Tag color={role === 'PM' ? 'gold' : 'cyan'}>{role}</Tag></p>
                 </div>
 
-                {/* ✅ Ô THỐNG KÊ TỔNG DUY NHẤT THEO YÊU CẦU CỦA SẾP */}
+                {/* Total EST statistics card */}
                 <Card bordered={false} className="shadow-sm border-l-4 border-l-blue-600 min-w-[250px]">
                     <Statistic 
                         title="TỔNG THỜI GIAN DỰ KIẾN (EST)" 
