@@ -54,22 +54,80 @@ Hệ thống cung cấp 5 phân hệ tính năng chính để quản lý toàn d
 
 ## 🚀 Hướng Dẫn Chạy Dự Án (Local Development)
 
-### 1. Khởi chạy Backend (FastAPI)
+👉 **SETUP CHI TIẾT:** Xem file [`SETUP_GUIDE.md`](./SETUP_GUIDE.md) ⭐ **BẮT BUỘC ĐỌC TRƯỚC**
+
+### ⚡ SETUP NHANH (Copy-Paste)
+
+#### Backend (Terminal 1):
 
 ```bash
 cd Backend
-# Tạo môi trường ảo và cài đặt thư viện (nếu cần)
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate.bat  # Windows
+
 pip install -r requirements.txt
-# Chạy server
 uvicorn main:app --reload
 ```
 
-### 2. Khởi chạy Frontend (ReactJS)
+#### Frontend (Terminal 2):
 
 ```bash
 cd Frontend
-# Cài đặt thư viện
 npm install
-# Khởi chạy server development
 npm run dev
 ```
+
+**Kết quả:**
+
+- Backend: http://localhost:8000 (Swagger: /docs)
+- Frontend: http://localhost:5173
+
+---
+
+## 📚 Tài Liệu Chi Tiết
+
+| File                      | Mô tả                                       |
+| ------------------------- | ------------------------------------------- |
+| **SETUP_GUIDE.md**        | 🎯 Hướng dẫn setup hoàn chỉnh (start here!) |
+| **BACKEND_SETUP.md**      | Danh sách thư viện backend & cách sử dụng   |
+| **FRONTEND_SETUP.md**     | Danh sách thư viện frontend & cách sử dụng  |
+| **CODE_REVIEW_REPORT.md** | Báo cáo review code & bugs tìm được         |
+
+---
+
+## 📦 Thư Viện Chính
+
+### Backend (Python)
+
+- **FastAPI** + **Uvicorn**: Web framework & server
+- **SQLAlchemy** + **asyncpg**: ORM & async database
+- **Pydantic**: Data validation
+- **python-jose**: JWT authentication
+- **passlib + bcrypt**: Password hashing
+- Xem `requirements.txt` để danh sách đầy đủ
+
+### Frontend (Node.js)
+
+- **React** + **Vite**: UI framework & build tool
+- **React Router DOM**: Navigation
+- **Axios**: HTTP client
+- **Ant Design**: UI components
+- **Tailwind CSS**: Utility CSS
+- Xem `package.json` để danh sách đầy đủ
+
+---
+
+## ✅ CHECKLIST TRƯỚC KHI COMMIT
+
+- [x] Backend requirements.txt đầy đủ
+- [x] Frontend package.json đầy đủ
+- [x] Comments viết bằng Tiếng Việt
+- [x] Không có personal markers (✅, ❌)
+- [x] Code clean & chuyên nghiệp
+- [x] All bugs fixed & documented
+- [x] Documentation hoàn chỉnh
+
+---
+
+## 🎯 BẠNƯỚC TIẾP THEO

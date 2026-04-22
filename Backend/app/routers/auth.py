@@ -114,108 +114,35 @@ async def register(
 # ========================================
 # ENDPOINT 2: LOGIN
 # ========================================
-# @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
-# async def login(
-#     login_data: UserLogin,
-#     db: AsyncSession = Depends(get_db)
-# ):
-#     """
-#     Endpoint để USER ĐĂNG NHẬP.
-    
-#     Request Body:
-#     ```json
-#     {
-#         "email": "user@example.com",
-#         "password": "Pass!"
-#     }
-#     ```
-    
-#     Response (200):
-#     ```json
-#     {
-#         "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-#         "token_type": "bearer",
-#         "user": {
-#             "id": 1,
-#             "email": "user@example.com",
-#             "full_name": "Nguyễn Tuấn Anh",
-#             "created_at": "2026-04-16T10:30:00",
-#             "updated_at": "2026-04-16T10:30:00"
-#         }
-#     }
-#     ```
-    
-#     Errors:
-#     - 401: Email không tồn tại hoặc password sai
-#     - 422: Validation error (email, password không hợp lệ)
-    
-#     Args:
-#         login_data: UserLogin schema (email, password)
-#         db: Database session (injected)
-        
-#     Returns:
-#         LoginResponse: JWT token + user info
-        
-#     Raises:
-#         HTTPException 401: Credentials không đúng
-#     """
-#     try:
-#         # Verify email + password
-#         user = await verify_user_password(db, login_data.email, login_data.password)
-        
-#         if not user:
-#             # Email không tồn tại hoặc password sai
-#             raise HTTPException(
-#                 status_code=status.HTTP_401_UNAUTHORIZED,
-#                 detail="Email hoặc mật khẩu không đúng"
-#             )
-        
-#         # Tạo JWT token
-#         access_token = create_access_token(
-#             data={"sub": str(user.id)}
-#         )
-        
-#         # Trả về LoginResponse (token + user info)
-#         return {
-#             "access_token": access_token,
-#             "token_type": "bearer",
-#             "user": user
-#         }
-    
-#     except HTTPException:
-#         # Re-raise HTTPException (401 từ credential check)
-#         raise
-    
-#     except Exception as e:
-#         # Lỗi khác (database error, etc)
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Lỗi server: {str(e)}"
-#         )
-
-
-# Backend\app\routers\auth.py
-
-@router.post("/login", response_model=Token) # Chốt trả về chỉ Token theo ý sếp
+@router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    # Verify user
+    """
+    Endpoint để USER ĐĂNG NHẬP.
+    
+    Sử dụng OAuth2PasswordRequestForm (username=email, password=password).
+    
+    Errors:
+    - 401: Email không tồn tại hoặc password sai
+    - 422: Validation error
+    """
+    # Verify email + password
     user = await verify_user_password(db, form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email hoặc mật khẩu chưa chính xác!",
+            detail="Email hoặc mật khẩu không đúng!",
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    # Tạo Token đúng cấu hình sếp chọn
+    # Tạo JWT token (user.id + user.email)
     access_token = create_access_token(
-        data = {
-            "data" : str(user.id),  # ID để backend truy vấn
-            "sub": str(user.email)  # Email để định danh OAuth2
+        data={
+            "data": str(user.id),
+            "sub": str(user.email)
         }
     )
     

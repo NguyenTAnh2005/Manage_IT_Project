@@ -9,7 +9,7 @@ import { LayoutGrid, ArrowRight, Loader2, FolderPlus, LogOut } from "lucide-reac
 const JoinProject = () => {
     const [code, setCode] = useState("");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(""); // Thêm state báo lỗi
+    const [error, setError] = useState("");
     
     const { joinProject, logOut } = useAuth();
     const navigate = useNavigate();
@@ -18,38 +18,47 @@ const JoinProject = () => {
         e.preventDefault();
         const cleanCode = code.trim();
         
-        if (!cleanCode) return;
+        // Validate format: 6-10 ký tự, chỉ A-Z, 0-9, underscore
+        const codeRegex = /^[A-Z0-9_]{6,10}$/;
+        
+        if (!cleanCode) {
+            setError("Vui lòng nhập mã dự án!");
+            return;
+        }
+
+        if (!codeRegex.test(cleanCode)) {
+            setError("Mã dự án phải chứa 6-10 ký tự (A-Z, 0-9, _). Ví dụ: HABIT_01");
+            return;
+        }
 
         setError("");
         setLoading(true);
 
         try {
-            // 1. Gọi API gửi mã xuống cho Backend
-            // (Backend giờ cực mượt: Đã join hay chưa join đều trả về 200 OK)
+            // Join project bằng project code
             await projectService.joinProject(cleanCode);
             
-            // 2. Thành công -> Lưu context và chuyển hướng
+            // Lưu project_code vào context
             joinProject(cleanCode);
+            
+            // Redirect vào dashboard
             navigate(`/dashboard/${cleanCode}/wbs`);
 
         } catch (err) {
-            // 3. Xử lý kịch bản lỗi chuẩn chỉ
             const status = err.response?.status;
-            const data = err.response?.data; // Lấy toàn bộ data lỗi
+            const data = err.response?.data;
 
+            // Handle lỗi theo status code từ backend
             if (status === 404) {
                 setError("Mã dự án không tồn tại! Vui lòng kiểm tra lại.");
             } 
             else if (status === 422) {
-                // Hứng lỗi Validation từ exceptions.py của backend
-                // Ví dụ: Nhập thiếu ký tự, sai định dạng regex
-                const validationMsg = data?.errors?.[0]?.message || "Định dạng mã không hợp lệ (Yêu cầu 6-10 ký tự, viết hoa, không dấu)";
-                setError(`Lỗi nhập liệu: ${validationMsg}`);
+                const validationMsg = data?.errors?.[0]?.message || "Định dạng mã không hợp lệ";
+                setError(`Lỗi validation: ${validationMsg}`);
             }
             else {
-                // Các lỗi khác (500, mạng đứt...)
-                setError(data?.detail || data?.message || "Có lỗi xảy ra từ máy chủ. Vui lòng thử lại sau.");
-                console.error("Lỗi Join Project:", err);
+                setError(data?.detail || data?.message || "Lỗi máy chủ. Thử lại sau.");
+                console.error("Join Project error:", err);
             }
         } finally {
             setLoading(false);

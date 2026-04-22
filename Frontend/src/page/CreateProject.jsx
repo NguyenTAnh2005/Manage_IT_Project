@@ -1,65 +1,80 @@
+// Frontend/src/page/CreateProject.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { projectService } from "../services/projectService";
 import Input from "../components/common/Input";
 import ThemeToggle from "../components/common/ThemeToggle";
-import { FolderPlus, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Rocket, Hash, Type, AlignLeft } from "lucide-react";
 
 const CreateProject = () => {
-    const [projectCode, setProjectCode] = useState("");
-    const [projectName, setProjectName] = useState("");
-    const [projectDescription, setProjectDescription] = useState("");
+    const navigate = useNavigate();
+    const { joinProject } = useAuth();
+    
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     
-    const { isAuthenticated } = useAuth();
-    const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        project_code: "",
+        name: "",
+        description: ""
+    });
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        if (name === "project_code") {
+            // Chỉ cho phép A-Z, 0-9, underscore - tự động convert thành uppercase
+            const cleanValue = value
+                .toUpperCase()
+                .replace(/[^A-Z0-9_]/g, "")
+                .slice(0, 10); // Giới hạn 10 ký tự
+            setFormData(prev => ({ ...prev, [name]: cleanValue }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const cleanCode = projectCode.trim();
-        const cleanName = projectName.trim();
-        
-        if (!cleanCode || !cleanName) {
-            setError("Vui lòng điền mã và tên dự án!");
-            return;
-        }
-
-        // Kiểm tra định dạng mã dự án (A-Z, 0-9, _)
-        const codeRegex = /^[A-Z0-9_]{6,10}$/;
-        if (!codeRegex.test(cleanCode)) {
-            setError("Mã dự án phải: 6-10 ký tự, chỉ A-Z, 0-9, _. VD: HABIT_01");
-            return;
-        }
-
         setError("");
-        setLoading(true);
 
+        // Validate độ dài
+        if (formData.project_code.length < 6 || formData.project_code.length > 10) {
+            setError("Mã dự án phải từ 6 đến 10 ký tự.");
+            return;
+        }
+        // Validate tên dự án
+        if (formData.name.trim().length < 3) {
+            setError("Tên dự án phải có ít nhất 3 ký tự.");
+            return;
+        }
+
+        setLoading(true);
         try {
-            const projectData = {
-                project_code: cleanCode,
-                name: cleanName,
-                description: projectDescription || null
-            };
+            // Gọi API tạo dự án (Backend sẽ tự set người tạo làm PM)
+            await projectService.createProject({
+                project_code: formData.project_code,
+                name: formData.name.trim(),
+                description: formData.description.trim()
+            });
+
+            // Lưu project_code vào context để ProtectedRoute cho phép vào
+            joinProject(formData.project_code);
             
-            const res = await projectService.createProject(projectData);
-            
-            // Sau khi tạo dự án thành công, chuyển đến WBS
-            navigate(`/dashboard/${cleanCode}/wbs`);
+            // Chuyển vào Dashboard WBS
+            navigate(`/dashboard/${formData.project_code}/wbs`);
 
         } catch (err) {
-            console.error("Lỗi tạo dự án:", err);
             const status = err.response?.status;
-            const detail = err.response?.data?.detail;
+            const data = err.response?.data;
 
+            // Handle lỗi theo status code
             if (status === 400) {
-                setError(`Lỗi: ${detail || "Mã dự án có thể đã tồn tại!"}`);
-            } else if (status === 401) {
-                setError("Bạn phải đăng nhập trước!");
-                navigate("/login");
+                setError("Mã dự án này đã tồn tại. Vui lòng chọn mã khác!");
+            } else if (status === 422) {
+                setError("Dữ liệu không hợp lệ. Kiểm tra lại mã hoặc tên dự án.");
             } else {
-                setError("Có lỗi xảy ra từ máy chủ. Vui lòng thử lại sau.");
+                setError(data?.detail || "Lỗi máy chủ. Không thể tạo dự án lúc này.");
             }
         } finally {
             setLoading(false);
@@ -67,106 +82,91 @@ const CreateProject = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-light-bg dark:bg-dark-bg transition-colors duration-300">
-            <div className="absolute top-5 right-5">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-light-bg dark:bg-dark-bg transition-colors duration-300 p-4">
+            <div className="absolute top-5 right-5 flex gap-2">
                 <ThemeToggle />
             </div>
 
-            <div className="absolute top-5 left-5">
-                <button
-                    onClick={() => navigate("/join-project")}
-                    className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            <div className="w-full max-w-lg">
+                <form 
+                    onSubmit={handleSubmit}
+                    className="card flex flex-col gap-6 p-8 sm:p-10 shadow-2xl dark:shadow-gray-400 bg-white dark:bg-slate-800 rounded-2xl"
                 >
-                    <ArrowLeft size={18} />
-                    Quay lại
-                </button>
-            </div>
-
-            <form 
-                onSubmit={handleSubmit}
-                className="card w-full max-w-md flex flex-col gap-6 p-10 shadow-2xl dark:shadow-gray-400"
-            >
-                <div className="text-center space-y-2">
-                    <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FolderPlus className="text-primary" size={32} />
+                    <div className="flex items-center gap-4 mb-2">
+                        <button 
+                            type="button" 
+                            onClick={() => navigate("/join-project")}
+                            className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full transition-colors"
+                        >
+                            <ArrowLeft className="text-slate-600 dark:text-slate-300" size={20} />
+                        </button>
+                        <div>
+                            <h2 className="text-2xl font-bold text-light-text dark:text-dark-text flex items-center gap-2">
+                                <Rocket className="text-green-500" /> Khởi tạo Dự Án
+                            </h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Trở thành Trưởng dự án (PM) ngay hôm nay</p>
+                        </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">
-                        Tạo Dự Án Mới
-                    </h2>
-                    <p className="text-sm text-light-muted dark:text-dark-muted">
-                        Tạo không gian làm việc mới cho dự án của bạn
-                    </p>
-                </div>
 
-                {/* Khung hiển thị lỗi */}
-                {error && (
-                    <span className="bg-red-50 border border-red-200 text-red-600 w-full text-sm italic px-3 py-2 rounded-md">
-                        ⚠️ {error}
-                    </span>
-                )}
-
-                {/* Mã Dự Án */}
-                <Input 
-                    label="Mã Dự Án"
-                    placeholder="Ví dụ: HABIT_01, PM_PRJ_2024..."
-                    value={projectCode}
-                    onChange={(e) => setProjectCode(e.target.value.toUpperCase())}
-                    isRequired={true}
-                    icon={<FolderPlus className="absolute top-[28%] left-[2%] text-slate-400" size={18}/>}
-                />
-                <p className="text-xs text-slate-500 -mt-4">
-                    (6-10 ký tự: A-Z, 0-9, _)
-                </p>
-
-                {/* Tên Dự Án */}
-                <Input 
-                    label="Tên Dự Án"
-                    placeholder="Ví dụ: Hệ Thống Quản Lý Dự Án..."
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    isRequired={true}
-                />
-
-                {/* Mô Tả Dự Án (Optional) */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        Mô Tả (Tùy chọn)
-                    </label>
-                    <textarea
-                        placeholder="Mô tả ngắn về dự án của bạn..."
-                        value={projectDescription}
-                        onChange={(e) => setProjectDescription(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary"
-                        rows="3"
-                    />
-                </div>
-
-                {/* Nút Tạo Dự Án */}
-                <button 
-                    type="submit" 
-                    disabled={loading}
-                    className={`btn-primary w-full flex items-center justify-center gap-2 py-3 ${loading && "opacity-60 cursor-not-allowed"}`}
-                >
-                    {loading ? (
-                        <>
-                            <Loader2 className="animate-spin" size={18} />
-                            Đang tạo...
-                        </>
-                    ) : (
-                        <>
-                            <FolderPlus size={18} />
-                            Tạo Dự Án
-                        </>
+                    {error && (
+                        <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-md">
+                            <p className="text-sm text-red-600 font-medium">{error}</p>
+                        </div>
                     )}
-                </button>
 
-                {/* Hướng dẫn */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                        💡 <strong>Mẹo:</strong> Sau khi tạo dự án, bạn sẽ tự động trở thành Trưởng Dự Án (PM).
-                    </p>
-                </div>
-            </form>
+                    <div className="space-y-5">
+                        <div className="relative">
+                            <Input 
+                                label="Mã Dự Án (Project Code)"
+                                name="project_code"
+                                placeholder="VD: BDU_APP_01"
+                                value={formData.project_code}
+                                onChange={handleChange}
+                                isRequired={true}
+                                icon={<Hash className="absolute top-[28%] left-[3%] text-slate-400" size={18} />}
+                            />
+                            <p className="text-xs text-slate-500 mt-1 italic">
+                                * 6-10 ký tự, viết hoa, không dấu, không khoảng trắng. Mọi người sẽ dùng mã này để tham gia.
+                            </p>
+                        </div>
+
+                        <Input 
+                            label="Tên Dự Án"
+                            name="name"
+                            placeholder="VD: App Quản Lý Thói Quen"
+                            value={formData.name}
+                            onChange={handleChange}
+                            isRequired={true}
+                            icon={<Type className="absolute top-[28%] left-[3%] text-slate-400" size={18} />}
+                        />
+
+                        <div className="flex flex-col gap-1 relative">
+                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Mô tả (Tùy chọn)</label>
+                            <AlignLeft className="absolute top-[38%] left-[3%] text-slate-400" size={18} />
+                            <textarea 
+                                name="description"
+                                rows="3"
+                                placeholder="Mục tiêu dự án này là gì..."
+                                value={formData.description}
+                                onChange={handleChange}
+                                className="pl-10 pr-4 py-2 border rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 bg-transparent text-light-text dark:text-dark-text border-slate-300 dark:border-slate-600 resize-none"
+                            />
+                        </div>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className={`btn-primary w-full flex items-center justify-center gap-2 py-3 mt-4 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-lg font-bold transition-all ${loading && 'opacity-60 cursor-not-allowed'}`}
+                    >
+                        {loading ? (
+                            <><Loader2 className="animate-spin" size={18} /> Đang khởi tạo...</>
+                        ) : (
+                            <><Rocket size={18} /> Hoàn tất & Vào trang quản lý</>
+                        )}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };

@@ -104,15 +104,19 @@ email-validator==2.1.0
 # - Normalize email về lowercase
 # Usage: from pydantic import EmailStr
 
-
-# Email sending (SMTP)
-fastapi-mail>=1.4.1
-
-# Rate limiting
-slowapi>=0.1.9
-
+fastapi-mail==1.4.1
+# fastapi-mail: Gửi email từ FastAPI (SMTP)
+# - Dùng cho password reset, email verification
+# - Hỗ trợ async/await
+# - Template support (HTML emails)
+# - Gửi qua Gmail, SendGrid, v.v...
 
 # ============================================
-# CÁCH CÀI ĐẶT:
+# CÁCH CÀI ĐẶT BACKEND:
+# python -m venv venv
+# source venv/bin/activate  (Linux/Mac) hoặc venv\Scripts\activate (Windows)
 # pip install -r requirements.txt
+# 
+# CHẠY SERVER:
+# uvicorn main:app --reload
 # ============================================

@@ -24,8 +24,9 @@ export const WbsDashBoard = () => {
     const [form] = Form.useForm();
     
     const [tasks, setTasks] = useState([]);
+    const [members, setMembers] = useState([]); // Lưu danh sách thành viên để gán công việc
     const [projectId, setProjectId] = useState(null);
-    const [role, setRole] = useState(null); // Lưu quyền user
+    const [role, setRole] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setPageError] = useState(null);
     const [expandedRowKeys, setExpandedRowKeys] = useState([]);
@@ -40,10 +41,15 @@ export const WbsDashBoard = () => {
             const pId = projectRes.id;
             setProjectId(pId);
 
-            // Lấy role của user
+            // Get user's role in project
             const roleRes = await axiosInstance.get(`/projects/${pId}/my-role`);
             setRole(roleRes.data.role);
 
+            // Get all project members for task assignment dropdown
+            const membersRes = await axiosInstance.get(`/projects/${pId}/members`);
+            setMembers(membersRes.data || []);
+
+            // Get WBS tasks
             const tasksRes = await taskService.getTasks(pId);
             setTasks(tasksRes.tasks || []);
         } catch (err) {
@@ -57,7 +63,6 @@ export const WbsDashBoard = () => {
         if (projectCode) fetchProjectAndTasks();
     }, [projectCode]);
 
-    // ✅ HÀM CHECK QUYỀN TẠI CHỖ
     const checkPermission = () => {
         if (role !== "PM") {
             showError("Chỉ Trưởng dự án (PM) mới có quyền thực hiện hành động này!");
@@ -67,7 +72,6 @@ export const WbsDashBoard = () => {
     };
 
     const handleOpenModal = (task = null) => {
-        // Bấm là check liền, không cho mở Form nếu là Member
         if (!checkPermission()) return;
 
         setEditingTask(task);
@@ -116,7 +120,7 @@ export const WbsDashBoard = () => {
     };
 
     const handleDeleteTask = () => {
-        if (!checkPermission()) return; // Gác cổng thêm lần nữa cho chắc
+        if (!checkPermission()) return;
         
         const isParent = editingTask.children && editingTask.children.length > 0;
         Modal.confirm({
@@ -148,13 +152,6 @@ export const WbsDashBoard = () => {
             setExpandedRowKeys(parentIds);
         }
     }, [tasks]);
-
-    const availableUsers = useMemo(() => {
-        const usersMap = new Map();
-        if (user) usersMap.set(user.id, user);
-        tasks.forEach(t => { if (t.owner) usersMap.set(t.owner.id, t.owner); });
-        return Array.from(usersMap.values());
-    }, [tasks, user]);
 
     const columns = [
         {
@@ -247,7 +244,6 @@ export const WbsDashBoard = () => {
                     </div>
                 }
             >
-                {/* Form giữ nguyên như cũ */}
                 <Form form={form} layout="vertical" onFinish={handleSubmit} className="mt-4">
                     <Form.Item name="name" label="Tên công việc" rules={[{ required: true, message: "Nhập tên việc đi sếp!" }]}>
                         <Input placeholder="Vd: Viết API Login..." size="large" />
@@ -261,11 +257,14 @@ export const WbsDashBoard = () => {
                                 ))}
                             </Select>
                         </Form.Item>
+
                         <Form.Item name="owner_id" label="Giao cho ai?">
                             <Select placeholder="Chọn người làm" size="large">
                                 <Select.Option value={null}>-- Để trống --</Select.Option>
-                                {availableUsers.map(u => (
-                                    <Select.Option key={u.id} value={u.id}>{u.full_name}</Select.Option>
+                                {members.map(m => (
+                                    <Select.Option key={m.user_id} value={m.user_id}>
+                                        {m.user.full_name} {m.role === 'PM' ? '(PM)' : ''}
+                                    </Select.Option>
                                 ))}
                             </Select>
                         </Form.Item>

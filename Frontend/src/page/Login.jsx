@@ -27,10 +27,16 @@ const Login = () => {
         setError("");
         setLoading(true);
 
+        // Validate input
+        if (!email || !password) {
+            setError("Vui lòng điền đầy đủ email và mật khẩu!");
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await authService.login(email, password);
             logIn(res.access_token);
-            // Có thể lấy thông tin user ở đây nếu dùng context
             navigate("/join-project");
         } catch (err) {
             setError(err?.response?.data?.detail || "Đăng nhập thất bại!");

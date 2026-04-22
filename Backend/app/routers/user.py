@@ -1,8 +1,8 @@
 """
-User endpoints - Các API liên quan đến người dùng.
-- Lấy thông tin user hiện tại
-- Cập nhật profile user
-- Xóa tài khoản user
+User endpoints - Profile and authentication-related APIs.
+- GET /users/me: Get current user info
+- PUT /users/me: Update user profile (NOT USED BY FRONTEND)
+- DELETE /users/me: Delete account (NOT USED BY FRONTEND)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +13,6 @@ from app.crud.crud_user import update_user, delete_user
 from app.models.model import User
 from app.schemas.scm_user import UserResponse, UserUpdate
 
-# Tạo router cho user endpoints
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
@@ -28,43 +27,10 @@ async def update_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Cập nhật thông tin của user hiện tại.
-    
-    **Cần authentication:** Đúng (Bearer token)
-    
-    Args:
-        user_update: Dữ liệu cập nhật
-            - email (tùy chọn): Email mới (phải unique, validate format)
-            - full_name (tùy chọn): Tên mới (min 3 ký tự)
-            - password (tùy chọn): Mật khẩu mới (min 6 ký tự + 1 uppercase + 1 special char)
-    
-    Returns:
-        UserResponse: Thông tin user sau cập nhật
-        
-    Raises:
-        400: Email đã tồn tại hoặc dữ liệu không hợp lệ
-        401: Token không hợp lệ hoặc đã hết hạn
-        404: User không tồn tại
-        
-    Ví dụ request body:
-        {
-            "email": "newemail@example.com",
-            "full_name": "Tên mới",
-            "password": "NewPass123!"
-        }
-    
-    Note: Chỉ cần cập nhật những field nào cần thiết, các field khác có thể bỏ trống
-    """
-    # Gọi hàm update_user từ CRUD
+    """Update current user profile. Fields: email, full_name, password (all optional)."""
     updated_user = await update_user(db, current_user.id, user_update)
-    
     if not updated_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Người dùng không tồn tại",
-        )
-    
+        raise HTTPException(status_code=404, detail="User not found")
     return updated_user
 
 
@@ -73,28 +39,8 @@ async def delete_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Xóa tài khoản của user hiện tại.
-    
-    **Cần authentication:** Đúng (Bearer token)
-    
-    Returns:
-        None (204 No Content)
-        
-    Raises:
-        401: Token không hợp lệ hoặc đã hết hạn
-        404: User không tồn tại
-        
-    Note: Hành động này không thể hoàn tác! Tài khoản sẽ bị xóa vĩnh viễn.
-    """
-    # Gọi hàm delete_user từ CRUD
+    """Delete current user account. Irreversible action!"""
     success = await delete_user(db, current_user.id)
-    
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Người dùng không tồn tại",
-        )
-    
-    # Trả về 204 No Content
+        raise HTTPException(status_code=404, detail="User not found")
     return None

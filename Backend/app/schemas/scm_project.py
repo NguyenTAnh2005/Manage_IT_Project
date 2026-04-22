@@ -159,3 +159,20 @@ class ProjectListResponse(BaseModel):
     """
     total: int = Field(..., description="Tổng số project")
     projects: list[ProjectWithMembersCount] = Field(..., description="Danh sách projects")
+
+
+from app.schemas.scm_user import UserResponse
+
+class MemberResponse(BaseModel):
+    """Schema trả về thông tin thành viên kèm theo Role của họ trong dự án"""
+    user_id: int
+    role: str
+    joined_at: datetime | None = None
+    user: UserResponse # Lấy ké luôn họ tên, email của user từ schema user
+    
+    class Config:
+        from_attributes = True
+
+class ChangeRoleRequest(BaseModel):
+    """Schema để PM gởi yêu cầu đổi quyền"""
+    role: str = Field(..., pattern="^(PM|MEMBER)$", description="Quyền chỉ được là PM hoặc MEMBER")
