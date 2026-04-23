@@ -54,27 +54,44 @@ Hệ thống cung cấp 5 phân hệ tính năng chính để quản lý toàn d
 
 ## 🚀 Hướng Dẫn Chạy Dự Án (Local Development)
 
-👉 **SETUP CHI TIẾT:** Xem file [`SETUP_GUIDE.md`](./SETUP_GUIDE.md) ⭐ **BẮT BUỘC ĐỌC TRƯỚC**
+### ⚡ SETUP ( khuyến cáo sử dụng cmd)
 
-### ⚡ SETUP NHANH (Copy-Paste)
+### Yêu cầu: Có tải node Js, PostgreSQL
 
-#### Backend (Terminal 1):
+- Tạo các file env trong thư mục backend và frontend theo mẫu của .env.example
+- Tạo database trong postgres dựa theo biến DATABASE_URL trong env file backend
+
+#### Backend :
+
+- Tạo môi trường ảo venv và tải thư viện cần thiết
 
 ```bash
 cd Backend
+# Tạo môi trường ảo
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate.bat  # Windows
-
+# kích hoạt môi trường ảnh
+venv\Scripts\activate.bat  # Windows
+# tải thư viện
 pip install -r requirements.txt
+
+# Cập nhật database
+alembic rivision --autogenerate -m "Init database" # Lệnh này có thể bị lỗi do nhóm chưa có cách làm việc hợp lý với các phiên bản database của alembic
+alembic upgrade head # Tự động cập nhật database dựa theo code backend nên nếu lệnh trên lỗi thì cũng có thể chạy lệnh này
+
+# chạy backend
 uvicorn main:app --reload
 ```
+
+### Lưu ý:
+
+- Với công cụ VS code, khi chạy dự án nên set PythonInterpreter (Ctrl + Shift + P) là file python.exe trong đường dẫn venv/Script/python.exe
 
 #### Frontend (Terminal 2):
 
 ```bash
 cd Frontend
 npm install
+# Nếu bị thiếu hoặc lỗi có thể tham khảo file README.md trong thư mục frontend
 npm run dev
 ```
 
@@ -82,17 +99,6 @@ npm run dev
 
 - Backend: http://localhost:8000 (Swagger: /docs)
 - Frontend: http://localhost:5173
-
----
-
-## 📚 Tài Liệu Chi Tiết
-
-| File                      | Mô tả                                       |
-| ------------------------- | ------------------------------------------- |
-| **SETUP_GUIDE.md**        | 🎯 Hướng dẫn setup hoàn chỉnh (start here!) |
-| **BACKEND_SETUP.md**      | Danh sách thư viện backend & cách sử dụng   |
-| **FRONTEND_SETUP.md**     | Danh sách thư viện frontend & cách sử dụng  |
-| **CODE_REVIEW_REPORT.md** | Báo cáo review code & bugs tìm được         |
 
 ---
 
@@ -117,17 +123,3 @@ npm run dev
 - Xem `package.json` để danh sách đầy đủ
 
 ---
-
-## ✅ CHECKLIST TRƯỚC KHI COMMIT
-
-- [x] Backend requirements.txt đầy đủ
-- [x] Frontend package.json đầy đủ
-- [x] Comments viết bằng Tiếng Việt
-- [x] Không có personal markers (✅, ❌)
-- [x] Code clean & chuyên nghiệp
-- [x] All bugs fixed & documented
-- [x] Documentation hoàn chỉnh
-
----
-
-## 🎯 BẠNƯỚC TIẾP THEO
