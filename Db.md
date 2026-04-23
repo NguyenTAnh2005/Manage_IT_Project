@@ -31,3 +31,4 @@
 - mo, ml, mp (Lạc quan, Khả dĩ, Bi quan --> Dùng cho tính toán PERT)
 - est (Kết quả tính Thời gian chuyên gia)
 - cost_total (Tổng chi phí ước lượng)
+- owner_id (Công việc này do ai làm)
